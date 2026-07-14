@@ -6,12 +6,10 @@ class P2PManager {
         this.peer = null;
         this.conn = null;
         this.id = null;
-        this.isHost = false;
     }
 
     async init() {
         return new Promise((resolve) => {
-            // Создаем Peer со случайным ID
             this.peer = new Peer(null, {
                 debug: 1,
                 config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}
@@ -24,29 +22,32 @@ class P2PManager {
             });
 
             this.peer.on('connection', (c) => {
+                if (this.conn) {
+                    c.close();
+                    return;
+                }
                 this.conn = c;
-                this.isHost = true;
                 this.bindEvents();
             });
 
             this.peer.on('error', (err) => {
-                console.error("Peer Error:", err.type);
-                if (err.type === 'peer-not-found') alert("Станция не найдена. Возможно, игра уже завершена.");
+                console.error("Peer Error:", err);
+                if (err.type === 'peer-not-found') {
+                    app.notify("Станция не найдена", "error");
+                }
             });
         });
     }
 
     connect(targetId) {
-        console.log("Connecting to station:", targetId);
+        if (this.conn) return;
         this.conn = this.peer.connect(targetId);
-        this.isHost = false;
         this.bindEvents();
     }
 
     bindEvents() {
         this.conn.on('open', () => {
-            console.log("P2P Tunnel Open");
-            window.dispatchEvent(new CustomEvent('p2p_ready'));
+            window.dispatchEvent(new CustomEvent('p2p_connected'));
         });
 
         this.conn.on('data', (data) => {
@@ -54,8 +55,8 @@ class P2PManager {
         });
 
         this.conn.on('close', () => {
-            alert("Потеря связи с оппонентом.");
-            location.reload();
+            app.notify("Связь с туннелем потеряна", "error");
+            setTimeout(() => location.reload(), 2000);
         });
     }
 
@@ -68,8 +69,8 @@ class P2PManager {
     updateStatus(online) {
         const el = document.getElementById('peer-status');
         if (online) {
-            el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-500 block"></span> ONLINE: ${this.id.substring(0,6)}`;
-            el.className = "text-[9px] font-['Share_Tech_Mono'] text-green-500 uppercase flex items-center gap-1";
+            el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> ONLINE: ${this.id.substring(0,6)}`;
+            el.className = "text-[9px] font-mono text-green-500 uppercase flex items-center gap-1";
         }
     }
 }

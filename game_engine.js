@@ -1,19 +1,24 @@
 /**
- * Движок игры "Дурак"
+ * Движок игры "Дурак" P2P
  */
 class DurakEngine {
     constructor() {
+        this.ranks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        this.suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+        this.reset();
+    }
+
+    reset() {
         this.deck = [];
         this.trump = null;
         this.hand = [];
-        this.table = []; // {attack, defense}
-        this.myTurn = false;
+        this.table = []; // {attack: card, defense: card | null}
+        this.isMyTurn = false;
         this.isDefender = false;
-        this.ranks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-        this.suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+        this.gameState = 'LOBBY'; // LOBBY, PLAYING, ENDED
     }
 
-    createDeck() {
+    initDeck() {
         this.deck = [];
         this.suits.forEach(s => {
             this.ranks.forEach((r, i) => {
@@ -31,31 +36,48 @@ class DurakEngine {
         }
     }
 
-    canBeat(attack, defense) {
-        if (defense.suit === attack.suit) {
-            return defense.power > attack.power;
-        }
-        return defense.suit === this.trump.suit;
-    }
-
     getSuitIcon(suit) {
         const icons = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
         return icons[suit];
     }
 
-    createCardUI(card, hidden = false) {
-        const el = document.createElement('div');
-        el.className = `card ${hidden ? 'back' : ''}`;
-        if (!hidden && card) {
-            const isRed = ['hearts', 'diamonds'].includes(card.suit);
-            el.classList.add(isRed ? 'red' : 'black');
-            el.innerHTML = `
+    createCardElement(card, isBack = false) {
+        const div = document.createElement('div');
+        div.className = `card ${isBack ? 'back' : (['hearts', 'diamonds'].includes(card.suit) ? 'red' : 'black')}`;
+        if (!isBack) {
+            div.innerHTML = `
                 <div class="card-suit suit-tl">${this.getSuitIcon(card.suit)}</div>
                 <div class="card-val">${card.rank}</div>
                 <div class="card-suit suit-br">${this.getSuitIcon(card.suit)}</div>
             `;
+            div.dataset.suit = card.suit;
+            div.dataset.rank = card.rank;
         }
-        return el;
+        return div;
+    }
+
+    canAttack(card) {
+        if (!this.isMyTurn || this.isDefender) return false;
+        if (this.table.length === 0) return true;
+        // Можно подкидывать только те ранги, что уже есть на столе
+        const ranksOnTable = new Set();
+        this.table.forEach(pair => {
+            ranksOnTable.add(pair.attack.rank);
+            if (pair.defense) ranksOnTable.add(pair.defense.rank);
+        });
+        return ranksOnTable.has(card.rank);
+    }
+
+    canDefend(attackCard, defenseCard) {
+        if (!this.isDefender) return false;
+        if (defenseCard.suit === attackCard.suit) {
+            return defenseCard.power > attackCard.power;
+        }
+        return defenseCard.suit === this.trump.suit;
+    }
+
+    isGameOver() {
+        return this.deck.length === 0 && (this.hand.length === 0);
     }
 }
 

@@ -1,9 +1,9 @@
 /**
- * Главный контроллер приложения METRO CASH
+ * Главный контроллер METRO CASH
  */
 const App = {
     async init() {
-        // 1. Убираем лоадер
+        // Убираем лоадер с задержкой для красоты
         setTimeout(() => {
             document.getElementById('loader').classList.add('opacity-0');
             setTimeout(() => {
@@ -12,42 +12,39 @@ const App = {
                 main.classList.remove('hidden');
                 setTimeout(() => main.classList.add('opacity-100'), 50);
             }, 700);
-        }, 1500);
+        }, 1200);
 
-        // 2. Инициализируем сеть
         await Network.init();
 
-        // 3. Проверка авто-подключения (если в ссылке есть #ID)
-        const targetId = window.location.hash.replace('#', '');
-        if (targetId && targetId.length > 5) {
-            Network.connect(targetId);
+        // Если в URL есть ID — подключаемся сразу
+        const hashId = window.location.hash.replace('#', '');
+        if (hashId && hashId.length > 5) {
+            Network.connect(hashId);
         }
 
         this.bindUI();
-        this.renderFakeLobby();
     },
 
     bindUI() {
-        document.getElementById('btn-create-game').onclick = () => this.createGame();
+        document.getElementById('btn-create-game').onclick = () => this.showCreateMenu();
         
-        window.addEventListener('game_start', () => {
+        window.addEventListener('p2p_ready', () => {
             document.getElementById('screen-welcome').classList.add('hidden');
             document.getElementById('modal-container').classList.add('hidden');
             document.getElementById('screen-game').classList.remove('hidden');
             
             if (Network.isHost) {
                 Game.createDeck();
-                this.dealCards();
-                this.sync();
+                this.initialDeal();
+                this.syncGame();
             }
         });
 
-        window.addEventListener('game_data', (e) => this.handleData(e.detail));
-
-        document.getElementById('btn-game-action').onclick = () => this.handleMainAction();
+        window.addEventListener('p2p_data', (e) => this.handlePacket(e.detail));
+        document.getElementById('btn-game-action').onclick = () => this.onAction();
     },
 
-    createGame() {
+    showCreateMenu() {
         const modal = document.getElementById('modal-container');
         const content = document.getElementById('modal-content');
         modal.classList.remove('hidden');
@@ -55,160 +52,133 @@ const App = {
         
         content.innerHTML = `
             <div class="text-center">
-                <h2 class="text-xl font-bold text-yellow-500 mb-4 tracking-widest">ОТКРЫТЫЙ ЭФИР</h2>
-                <div class="py-6 border-y border-white/5 mb-6">
-                    <p class="text-xs text-zinc-500 mb-2">ВАША СТАНЦИЯ:</p>
-                    <code class="text-lg text-white bg-black px-4 py-2 rounded">${Network.id}</code>
+                <h2 class="text-2xl font-bold text-yellow-500 mb-6 font-['Orbitron']">НОВЫЙ СТОЛ</h2>
+                <div class="bg-black/40 border border-white/5 rounded-2xl p-6 mb-6">
+                    <p class="text-[10px] text-zinc-500 uppercase mb-2 font-mono">Станция ID</p>
+                    <code class="text-white text-lg tracking-widest">${Network.id}</code>
                 </div>
-                <button id="send-to-tg" class="w-full py-4 bg-yellow-500 text-black font-bold rounded-xl mb-4">ОПУБЛИКОВАТЬ В TG</button>
-                <p class="text-[10px] text-zinc-600">Ожидайте, пока кто-то подключится...</p>
+                <button id="pub-tg" class="w-full py-4 bg-yellow-500 text-black font-bold rounded-xl mb-4">ОПУБЛИКОВАТЬ В КАНАЛ</button>
+                <div class="text-[10px] text-zinc-500 font-mono animate-pulse">ОЖИДАНИЕ ПАССАЖИРА...</div>
             </div>
         `;
 
-        document.getElementById('send-to-tg').onclick = async () => {
-            document.getElementById('send-to-tg').innerText = "ОТПРАВЛЕНО";
-            document.getElementById('send-to-tg').disabled = true;
-            await TelegramAPI.publishGame(Network.id, 100);
+        document.getElementById('pub-tg').onclick = async () => {
+            const btn = document.getElementById('pub-tg');
+            btn.disabled = true;
+            btn.innerText = "ОТПРАВЛЕНО";
+            await TelegramAPI.publishGame(Network.id, 500);
         };
     },
 
-    dealCards() {
-        // Раздаем 6 карт себе
+    initialDeal() {
+        // Хост раздает 6 карт себе
         for(let i=0; i<6; i++) Game.hand.push(Game.deck.pop());
         Game.myTurn = true;
-        this.updateTable();
+        this.renderTable();
     },
 
-    updateTable() {
-        // Рендер руки
-        const handEl = document.getElementById('player-hand');
-        handEl.innerHTML = '';
-        Game.hand.forEach((card, index) => {
+    renderTable() {
+        const hand = document.getElementById('player-hand');
+        hand.innerHTML = '';
+        Game.hand.forEach((card, idx) => {
             const el = Game.createCardUI(card);
-            el.onclick = () => this.playCard(index);
-            handEl.appendChild(el);
+            el.style.marginLeft = idx === 0 ? '0' : '-60px';
+            el.onclick = () => this.playCard(idx);
+            hand.appendChild(el);
         });
 
-        // Рендер козыря
-        const trumpEl = document.getElementById('trump-slot');
-        trumpEl.innerHTML = '';
-        if (Game.trump) trumpEl.appendChild(Game.createCardUI(Game.trump));
+        const trump = document.getElementById('trump-slot');
+        trump.innerHTML = '';
+        if (Game.trump) trump.appendChild(Game.createCardUI(Game.trump));
 
+        document.getElementById('deck-count-badge').innerText = Game.deck.length;
+        document.getElementById('current-action').innerText = Game.myTurn ? "ВАШ ХОД" : "ХОД ПРОТИВНИКА";
+        
         // Рендер стола
-        const tableEl = document.getElementById('table-cards');
-        tableEl.innerHTML = '';
+        const table = document.getElementById('table-cards');
+        table.innerHTML = '';
         Game.table.forEach(pair => {
-            const pairDiv = document.createElement('div');
-            pairDiv.className = 'relative w-24 h-36';
-            
+            const wrap = document.createElement('div');
+            wrap.className = 'relative w-24 h-36';
             const att = Game.createCardUI(pair.attack);
-            att.className += ' absolute inset-0';
-            pairDiv.appendChild(att);
-
+            att.className += ' absolute inset-0 scale-75';
+            wrap.appendChild(att);
             if (pair.defense) {
                 const def = Game.createCardUI(pair.defense);
-                def.className += ' absolute inset-0 translate-x-4 translate-y-4 z-10';
-                pairDiv.appendChild(def);
+                def.className += ' absolute inset-0 scale-75 translate-x-4 translate-y-4 z-10';
+                wrap.appendChild(def);
             }
-            tableEl.appendChild(pairDiv);
+            table.appendChild(wrap);
         });
-
-        document.getElementById('deck-count').innerText = Game.deck.length;
-        document.getElementById('current-action').innerText = Game.myTurn ? "ВАШ ХОД" : "ХОД ПРОТИВНИКА";
-        document.getElementById('btn-game-action').innerText = Game.isDefender ? "ВЗЯТЬ" : "БИТО";
     },
 
-    playCard(index) {
+    playCard(idx) {
         if (!Game.myTurn) return;
-        
-        const card = Game.hand[index];
+        const card = Game.hand[idx];
         
         if (!Game.isDefender) {
             // Атака
-            Game.hand.splice(index, 1);
             Game.table.push({ attack: card, defense: null });
-            Network.send('MOVE', { attack: card });
+            Game.hand.splice(idx, 1);
+            Network.send('MOVE', { card });
             Game.myTurn = false;
         } else {
-            // Защита: ищем последнюю небитую карту
-            const lastPair = Game.table[Game.table.length - 1];
-            if (lastPair && !lastPair.defense && Game.canBeat(lastPair.attack, card)) {
-                Game.hand.splice(index, 1);
-                lastPair.defense = card;
-                Network.send('DEFEND', { defense: card });
+            // Защита
+            const last = Game.table[Game.table.length - 1];
+            if (last && !last.defense && Game.canBeat(last.attack, card)) {
+                last.defense = card;
+                Game.hand.splice(idx, 1);
+                Network.send('DEFEND', { card });
                 Game.myTurn = false;
             }
         }
-        this.updateTable();
+        this.renderTable();
     },
 
-    handleMainAction() {
+    onAction() {
         if (!Game.myTurn) return;
         if (Game.isDefender) {
-            // Взять все карты
-            Network.send('TAKE_ALL', {});
-            this.endTurn(true);
+            Network.send('TAKE', {});
+            // Логика взятия
         } else {
-            // Бито
             Network.send('BITO', {});
-            this.endTurn(false);
+            Game.table = [];
+            Game.myTurn = false;
         }
+        this.renderTable();
     },
 
-    endTurn(tookCards) {
-        // Логика завершения хода и добора
-        // В упрощенном тесте просто переключаем роли
-        Game.isDefender = !Game.isDefender;
-        this.updateTable();
-    },
-
-    sync() {
-        Network.send('INIT', {
+    syncGame() {
+        Network.send('SYNC', {
             deck: Game.deck,
-            trump: Game.trump,
-            turn: false
+            trump: Game.trump
         });
     },
 
-    handleData(data) {
-        if (data.type === 'INIT') {
-            Game.deck = data.payload.deck;
-            Game.trump = data.payload.trump;
-            Game.isDefender = true; // Кто зашел, тот защищается
-            // Добор из общей колоды (которую хост прислал)
+    handlePacket(p) {
+        if (p.type === 'SYNC') {
+            Game.deck = p.payload.deck;
+            Game.trump = p.payload.trump;
+            Game.isDefender = true;
             for(let i=0; i<6; i++) Game.hand.push(Game.deck.pop());
-            this.updateTable();
+            this.renderTable();
         }
-        
-        if (data.type === 'MOVE') {
-            Game.table.push({ attack: data.payload.attack, defense: null });
+        if (p.type === 'MOVE') {
+            Game.table.push({ attack: p.payload.card, defense: null });
             Game.myTurn = true;
-            this.updateTable();
+            this.renderTable();
         }
-
-        if (data.type === 'DEFEND') {
-            Game.table[Game.table.length - 1].defense = data.payload.defense;
+        if (p.type === 'DEFEND') {
+            Game.table[Game.table.length-1].defense = p.payload.card;
             Game.myTurn = true;
-            this.updateTable();
+            this.renderTable();
         }
-
-        if (data.type === 'BITO') {
+        if (p.type === 'BITO') {
             Game.table = [];
             Game.myTurn = true;
             Game.isDefender = false;
-            this.updateTable();
+            this.renderTable();
         }
-    },
-
-    renderFakeLobby() {
-        const list = document.getElementById('server-list');
-        list.innerHTML = `
-            <div class="p-3 bg-white/5 border border-white/5 rounded-lg flex justify-between items-center opacity-50">
-                <div><p class="text-xs font-mono">system_test</p><p class="text-green-500 font-bold">500 ₽</p></div>
-                <button disabled class="text-[10px] bg-zinc-800 px-3 py-1 rounded">FULL</button>
-            </div>
-            <p class="text-[9px] text-center text-zinc-600 mt-4 uppercase">Подключитесь по прямой ссылке друга</p>
-        `;
     }
 };
 

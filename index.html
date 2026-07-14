@@ -13,7 +13,7 @@
 
     <div class="scanlines"></div>
 
-    <!-- Loading Screen -->
+    <!-- Загрузочный экран -->
     <div id="loader" class="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center transition-all duration-700">
         <div class="metro-loader">
             <div class="circle"></div>
@@ -21,9 +21,10 @@
             <div class="circle"></div>
         </div>
         <div class="mt-10 font-['Orbitron'] text-yellow-500 tracking-[0.5em] animate-pulse">METRO CASH</div>
+        <div class="text-[10px] text-zinc-600 mt-4 font-mono">INITIALIZING SECURE P2P...</div>
     </div>
 
-    <!-- Main App -->
+    <!-- Основное приложение -->
     <div id="main-app" class="hidden h-screen flex flex-col opacity-0 transition-opacity duration-1000">
         <header class="h-16 border-b border-yellow-500/10 flex items-center justify-between px-6 bg-black/40 backdrop-blur-xl z-10">
             <div class="flex items-center gap-4">
@@ -38,65 +39,70 @@
             <div id="balance-val" class="text-green-400 font-['Share_Tech_Mono'] text-lg bg-zinc-900/80 px-4 py-1 rounded-lg border border-white/5">2,450 ₽</div>
         </header>
 
-        <main class="flex-grow relative overflow-hidden">
-            <!-- Menu -->
+        <main class="flex-grow relative">
+            <!-- Главное меню -->
             <section id="screen-welcome" class="absolute inset-0 flex items-center justify-center p-6 z-20">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
-                    <div class="bg-zinc-900/40 border border-white/5 p-8 rounded-2xl backdrop-blur-sm">
-                        <h3 class="text-2xl font-['Orbitron'] font-bold mb-4">СОЗДАТЬ ИГРУ</h3>
-                        <p class="text-zinc-500 text-sm mb-8">Вы будете хостом. Код стола отправится в Telegram.</p>
-                        <button id="btn-create-game" class="w-full py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition-all">ОТКРЫТЬ СТОЛ</button>
+                    <div class="bg-zinc-900/40 border border-white/5 p-8 rounded-2xl backdrop-blur-sm shadow-2xl">
+                        <h3 class="text-2xl font-['Orbitron'] font-bold mb-4">СОЗДАТЬ</h3>
+                        <p class="text-zinc-500 text-sm mb-8 leading-relaxed">Вы станете хостом. Система создаст защищенный канал и опубликует приглашение в Telegram-канал проекта.</p>
+                        <button id="btn-create-game" class="w-full py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition-all active:scale-95 shadow-[0_0_20px_rgba(234,179,8,0.3)]">ОТКРЫТЬ СТОЛ</button>
                     </div>
+                    
                     <div class="bg-zinc-900/40 border border-white/5 p-8 rounded-2xl backdrop-blur-sm flex flex-col h-[350px]">
-                        <h3 class="text-xl font-['Orbitron'] font-bold mb-4 uppercase">Станции рядом</h3>
+                        <h3 class="text-xl font-['Orbitron'] font-bold mb-4 uppercase text-zinc-300">Станции</h3>
                         <div id="server-list" class="flex-grow overflow-y-auto space-y-2 custom-scrollbar">
-                            <div class="text-center py-10 text-zinc-600 text-xs italic">Поиск активных сигналов...</div>
+                            <div class="text-center py-10 text-zinc-600 text-xs italic font-mono uppercase tracking-widest">Scanning network signals...</div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Game Table -->
+            <!-- Игровой стол -->
             <section id="screen-game" class="hidden absolute inset-0 bg-[#080808]">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a1a1a_0%,#080808_100%)]"></div>
                 
-                <!-- Opponent -->
+                <!-- Противник -->
                 <div class="absolute top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <div id="opp-card-count" class="bg-black/60 border border-red-500/30 px-6 py-2 rounded-full text-[10px] text-white tracking-widest uppercase">Ожидание хода...</div>
-                    <div id="opponent-hand" class="mt-4 flex gap-[-30px]"></div>
+                    <div id="opp-card-count" class="bg-black/60 border border-red-500/30 px-6 py-2 rounded-full text-[10px] text-white tracking-widest uppercase mb-4">Ожидание...</div>
+                    <div id="opponent-hand" class="flex gap-[-40px]"></div>
                 </div>
 
-                <!-- Table -->
+                <!-- Поле боя -->
                 <div id="battle-ground" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div id="table-cards" class="flex gap-4 pointer-events-auto"></div>
+                    <div id="table-cards" class="flex gap-6 pointer-events-auto"></div>
                 </div>
 
-                <!-- Deck & Trump -->
-                <div class="absolute right-10 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
-                    <div id="trump-slot"></div>
-                    <div class="w-16 h-24 bg-zinc-800 border-2 border-white/10 rounded-lg flex items-center justify-center text-[10px] font-bold text-white/20 -rotate-12">
-                        <span id="deck-count">0</span>
+                <!-- Колода и Козырь -->
+                <div class="absolute right-10 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4">
+                    <div id="trump-slot" class="relative w-20 h-32 border border-white/5 rounded-xl flex items-center justify-center bg-black/20"></div>
+                    <div class="relative">
+                        <div class="w-20 h-32 bg-zinc-800 border-2 border-white/10 rounded-xl flex items-center justify-center text-[10px] font-bold text-white/20 -rotate-6 shadow-2xl">
+                            METRO
+                        </div>
+                        <div id="deck-count-badge" class="absolute -top-3 -right-3 w-8 h-8 bg-yellow-500 rounded-full text-black text-xs flex items-center justify-center font-bold">0</div>
                     </div>
                 </div>
 
-                <!-- Player Hand -->
-                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-full flex justify-center">
-                    <div id="player-hand" class="flex gap-2"></div>
+                <!-- Рука игрока -->
+                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-full flex justify-center perspective-1000">
+                    <div id="player-hand" class="flex gap-[-20px] pb-10"></div>
                 </div>
 
-                <!-- Actions -->
-                <div class="absolute bottom-10 right-10 flex flex-col gap-2">
-                    <div id="game-status-box" class="bg-black/80 border border-yellow-500/30 p-4 rounded-xl text-center">
-                        <div id="current-action" class="text-sm font-bold uppercase">ВАШ ХОД</div>
+                <!-- Управление -->
+                <div class="absolute bottom-10 right-10 flex flex-col gap-3">
+                    <div class="bg-black/80 border border-yellow-500/30 p-4 rounded-xl text-center backdrop-blur-md min-w-[160px]">
+                        <div id="current-action" class="text-xs font-bold uppercase tracking-widest text-yellow-500">ВАШ ХОД</div>
                     </div>
-                    <button id="btn-game-action" class="px-8 py-3 bg-white text-black font-bold rounded-lg shadow-xl hover:scale-105 active:scale-95 transition-all">БИТО</button>
+                    <button id="btn-game-action" class="px-8 py-4 bg-white text-black font-bold rounded-xl shadow-xl hover:scale-105 active:scale-95 transition-all uppercase text-sm">БИТО</button>
                 </div>
             </section>
         </main>
     </div>
 
+    <!-- Модальные окна -->
     <div id="modal-container" class="hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
-        <div id="modal-content" class="max-w-md w-full bg-zinc-900 border border-white/10 rounded-2xl p-8"></div>
+        <div id="modal-content" class="max-w-md w-full bg-zinc-900 border border-yellow-500/20 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)]"></div>
     </div>
 
     <script src="tg_api.js"></script>

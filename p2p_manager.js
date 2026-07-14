@@ -1,5 +1,5 @@
 /**
- * Улучшенный менеджер соединений
+ * P2P Менеджер для METRO CASH
  */
 class P2PManager {
     constructor() {
@@ -11,48 +11,50 @@ class P2PManager {
 
     async init() {
         return new Promise((resolve) => {
-            // Создаем Peer без фиксированного ID для случайного назначения
-            this.peer = new Peer(null, { debug: 1 });
+            // Создаем Peer со случайным ID
+            this.peer = new Peer(null, {
+                debug: 1,
+                config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}
+            });
             
             this.peer.on('open', (id) => {
                 this.id = id;
-                console.log("My Peer ID:", id);
-                this.updateUI(true);
+                this.updateStatus(true);
                 resolve(id);
             });
 
             this.peer.on('connection', (c) => {
                 this.conn = c;
                 this.isHost = true;
-                this.handleEvents();
+                this.bindEvents();
             });
 
             this.peer.on('error', (err) => {
-                console.error("PeerJS Error:", err);
-                if(err.type === 'peer-not-found') alert("Станция не найдена. Возможно, игрок отключился.");
+                console.error("Peer Error:", err.type);
+                if (err.type === 'peer-not-found') alert("Станция не найдена. Возможно, игра уже завершена.");
             });
         });
     }
 
     connect(targetId) {
-        console.log("Connecting to:", targetId);
+        console.log("Connecting to station:", targetId);
         this.conn = this.peer.connect(targetId);
         this.isHost = false;
-        this.handleEvents();
+        this.bindEvents();
     }
 
-    handleEvents() {
+    bindEvents() {
         this.conn.on('open', () => {
-            console.log("Connected to peer!");
-            window.dispatchEvent(new CustomEvent('game_start'));
+            console.log("P2P Tunnel Open");
+            window.dispatchEvent(new CustomEvent('p2p_ready'));
         });
 
         this.conn.on('data', (data) => {
-            window.dispatchEvent(new CustomEvent('game_data', { detail: data }));
+            window.dispatchEvent(new CustomEvent('p2p_data', { detail: data }));
         });
 
         this.conn.on('close', () => {
-            alert("Связь потеряна");
+            alert("Потеря связи с оппонентом.");
             location.reload();
         });
     }
@@ -63,10 +65,10 @@ class P2PManager {
         }
     }
 
-    updateUI(online) {
+    updateStatus(online) {
         const el = document.getElementById('peer-status');
         if (online) {
-            el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-500 block"></span> ONLINE: ${this.id.slice(0,6)}`;
+            el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-500 block"></span> ONLINE: ${this.id.substring(0,6)}`;
             el.className = "text-[9px] font-['Share_Tech_Mono'] text-green-500 uppercase flex items-center gap-1";
         }
     }

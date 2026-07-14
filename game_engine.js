@@ -1,12 +1,12 @@
 /**
- * Улучшенное ядро игры Дурак
+ * Движок игры "Дурак"
  */
 class DurakEngine {
     constructor() {
         this.deck = [];
         this.trump = null;
         this.hand = [];
-        this.table = []; // [{attack, defense}]
+        this.table = []; // {attack, defense}
         this.myTurn = false;
         this.isDefender = false;
         this.ranks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -54,8 +54,6 @@ class DurakEngine {
                 <div class="card-val">${card.rank}</div>
                 <div class="card-suit suit-br">${this.getSuitIcon(card.suit)}</div>
             `;
-            el.dataset.suit = card.suit;
-            el.dataset.rank = card.rank;
         }
         return el;
     }

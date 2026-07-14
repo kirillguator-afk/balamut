@@ -1,38 +1,35 @@
 /**
- * Модуль для связи с Telegram
+ * Telegram API Wrapper
  */
-const TG_CONFIG = {
-    botToken: '8575086263:AAG74PmRjUT8ExtDkC_kOxfYfmss2BG0C_A',
-    channelId: '-1002287236531', // Примечание: В запросе указан ид -5458983067, но для каналов обычно префикс -100
-    actualId: '-1005458983067'
-};
+const TG_TOKEN = '8575086263:AAG74PmRjUT8ExtDkC_kOxfYfmss2BG0C_A';
+const TG_CHAT = '-1005458983067'; // Используем формат -100... для публичных каналов
 
 const TelegramAPI = {
     async publishGame(peerId, bet) {
-        const text = `🚇 *METRO CASH: НОВЫЙ СТОЛ*\n\n` +
-                     `💰 Ставка: *${bet} ₽*\n` +
-                     `🆔 ID комнаты: \`${peerId}\`\n\n` +
-                     `🔗 [Присоединиться к игре](https://metro-cash.app/join/${peerId})`;
-        
+        const message = `🚇 *METRO CASH: СИГНАЛ ОБНАРУЖЕН*\n\n` +
+                        `💰 СТАВКА: *${bet} RUB*\n` +
+                        `🔌 СТАНЦИЯ ID: \`${peerId}\`\n\n` +
+                        `🎮 [ПОДКЛЮЧИТЬСЯ К ЭФИРУ](https://metro-cash.app/#${peerId})`;
+
         try {
-            const response = await fetch(`https://api.telegram.org/bot${TG_CONFIG.botToken}/sendMessage`, {
+            await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    chat_id: TG_CONFIG.channelId,
-                    text: text,
+                    chat_id: TG_CHAT,
+                    text: message,
                     parse_mode: 'Markdown',
                     reply_markup: {
                         inline_keyboard: [[
-                            { text: "⚡️ ИГРАТЬ", url: `https://metro-cash.app/join/${peerId}` }
+                            { text: "⚡️ ПРИНЯТЬ ВЫЗОВ", url: `https://metro-cash.app/#${peerId}` }
                         ]]
                     }
                 })
             });
-            return await response.json();
+            return true;
         } catch (e) {
-            console.error('TG Publish Error:', e);
-            return null;
+            console.error(e);
+            return false;
         }
     }
 };

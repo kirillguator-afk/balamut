@@ -1,142 +1,173 @@
 /**
- * Главный контроллер приложения
+ * Main Controller
  */
-const UI = {
-    loader: document.getElementById('loader'),
-    main: document.getElementById('main-app'),
-    screens: {
-        welcome: document.getElementById('screen-welcome'),
-        game: document.getElementById('screen-game')
+const App = {
+    state: {
+        balance: 2450,
+        bet: 100
     },
-    modal: document.getElementById('modal-container'),
-    modalContent: document.getElementById('modal-content'),
-    playerHand: document.getElementById('player-hand'),
-    opponentHand: document.getElementById('opponent-hand'),
-    trumpCard: document.getElementById('trump-card')
-};
 
-// Initialization
-window.addEventListener('DOMContentLoaded', async () => {
-    // Simulate loading
-    setTimeout(async () => {
-        UI.loader.classList.add('opacity-0');
+    init() {
+        this.bindEvents();
+        this.simulateLobby();
+        
+        // Loader sequence
         setTimeout(() => {
-            UI.loader.style.display = 'none';
-            UI.main.classList.remove('hidden');
-        }, 1000);
+            document.getElementById('loader').classList.add('opacity-0');
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('main-app').classList.remove('hidden');
+                setTimeout(() => document.getElementById('main-app').classList.add('opacity-100'), 50);
+            }, 1000);
+        }, 2000);
 
-        await P2P.init();
-    }, 2000);
-});
+        Network.init();
+    },
 
-// Create Game Logic
-document.getElementById('btn-create-game').addEventListener('click', () => {
-    showModal(`
-        <div class="text-center">
-            <h4 class="text-xl font-bold text-yellow-500 mb-4">СОЗДАНИЕ СТОЛА</h4>
-            <div class="mb-6">
-                <label class="block text-xs text-zinc-500 mb-2 uppercase">Ставка (RUB)</label>
-                <input type="number" id="bet-input" value="100" class="w-full bg-black border border-white/10 rounded-lg p-3 text-center text-xl font-mono focus:border-yellow-500 outline-none">
-            </div>
-            <button id="btn-confirm-create" class="w-full py-3 bg-yellow-500 text-black font-bold rounded-lg mb-3">ОПУБЛИКОВАТЬ В TG</button>
-            <p class="text-[10px] text-zinc-600">ID: ${P2P.myId}</p>
-        </div>
-    `);
+    bindEvents() {
+        // Create Game
+        document.getElementById('btn-create-game').onclick = () => this.showCreateModal();
 
-    document.getElementById('btn-confirm-create').onclick = async () => {
-        const bet = document.getElementById('bet-input').value;
-        document.getElementById('btn-confirm-create').disabled = true;
-        document.getElementById('btn-confirm-create').innerText = 'ПУБЛИКАЦИЯ...';
+        // P2P Events
+        window.addEventListener('p2p_connected', () => this.startGame());
+        window.addEventListener('p2p_data', (e) => this.handleNetworkData(e.detail));
+    },
+
+    showCreateModal() {
+        const modal = document.getElementById('modal-container');
+        const content = document.getElementById('modal-content');
         
-        await TelegramAPI.publishGame(P2P.myId, bet);
-        
-        UI.modalContent.innerHTML = `
-            <div class="text-center py-8">
-                <div class="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <h4 class="text-lg font-bold">ОЖИДАНИЕ ИГРОКА</h4>
-                <p class="text-sm text-zinc-400 mt-2">Ваше приглашение отправлено в канал METRO CASH</p>
+        content.innerHTML = `
+            <h2 class="text-2xl font-['Orbitron'] font-bold text-yellow-500 mb-6">НОВЫЙ СТОЛ</h2>
+            <div class="space-y-4 mb-8">
+                <div>
+                    <label class="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Ставка (RUB)</label>
+                    <input type="number" id="bet-val" value="100" class="w-full bg-black border border-white/10 rounded-xl p-4 text-xl font-mono outline-none focus:border-yellow-500/50">
+                </div>
             </div>
+            <button id="confirm-publish" class="w-full py-4 bg-yellow-500 text-black font-bold rounded-xl active:scale-95 transition-all">ОПУБЛИКОВАТЬ В TG</button>
         `;
-    };
-});
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
 
-// Join Game Logic
-document.getElementById('btn-join-modal').addEventListener('click', () => {
-    showModal(`
-        <div class="text-center">
-            <h4 class="text-xl font-bold text-white mb-4">ПОДКЛЮЧЕНИЕ</h4>
-            <input type="text" id="join-id-input" placeholder="Введите ID комнаты" class="w-full bg-black border border-white/10 rounded-lg p-3 text-center mb-4 focus:border-blue-500 outline-none">
-            <button id="btn-confirm-join" class="w-full py-3 bg-white text-black font-bold rounded-lg">ВОЙТИ В ИГРУ</button>
-        </div>
-    `);
+        document.getElementById('confirm-publish').onclick = async () => {
+            this.state.bet = document.getElementById('bet-val').value;
+            const btn = document.getElementById('confirm-publish');
+            btn.disabled = true;
+            btn.innerText = "ПУБЛИКАЦИЯ...";
+            
+            await TelegramAPI.publishGame(Network.id, this.state.bet);
+            
+            content.innerHTML = `
+                <div class="text-center py-10">
+                    <div class="metro-loader justify-center mb-8">
+                        <div class="circle"></div><div class="circle"></div><div class="circle"></div>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">ОЖИДАНИЕ ИГРОКА</h3>
+                    <p class="text-zinc-500 text-sm">Ваш стол опубликован в канале.<br>Не закрывайте страницу.</p>
+                    <div class="mt-6 p-3 bg-black/50 rounded font-mono text-[10px] text-zinc-400">ID: ${Network.id}</div>
+                </div>
+            `;
+        };
+    },
 
-    document.getElementById('btn-confirm-join').onclick = () => {
-        const id = document.getElementById('join-id-input').value;
-        if (id) {
-            P2P.connect(id);
-            showModal(`<div class="text-center py-8"><p>Подключение к ${id}...</p></div>`);
+    simulateLobby() {
+        const list = document.getElementById('server-list');
+        // Моковые данные (в идеале тянутся из API/TG)
+        const mockServers = [
+            { id: '4a1b...', bet: 500, players: '1/2' },
+            { id: '9f2c...', bet: 1000, players: '1/2' },
+            { id: '2d4e...', bet: 100, players: '1/2' }
+        ];
+
+        setTimeout(() => {
+            list.innerHTML = '';
+            mockServers.forEach(srv => {
+                const item = document.createElement('div');
+                item.className = "bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-all cursor-pointer group";
+                item.innerHTML = `
+                    <div>
+                        <div class="text-[10px] text-zinc-500 font-mono">${srv.id}</div>
+                        <div class="text-lg font-bold text-green-400">${srv.bet} ₽</div>
+                    </div>
+                    <button class="px-4 py-2 bg-zinc-800 group-hover:bg-yellow-500 group-hover:text-black rounded-lg text-xs font-bold transition-all">ВХОД</button>
+                `;
+                item.onclick = () => {
+                    // В реальности здесь будет реальный ID из TG
+                    alert("Для подключения используйте прямую ссылку из Telegram канала.");
+                };
+                list.appendChild(item);
+            });
+        }, 1500);
+    },
+
+    startGame() {
+        document.getElementById('modal-container').classList.add('hidden');
+        document.getElementById('screen-welcome').classList.add('hidden');
+        document.getElementById('screen-game').classList.remove('hidden');
+        
+        if (Network.isHost) {
+            Game.initDeck();
+            this.distributeCards();
+            this.syncGameState();
         }
-    };
-});
+    },
 
-// Modal Helper
-function showModal(html) {
-    UI.modalContent.innerHTML = html;
-    UI.modal.classList.remove('hidden');
-    UI.modal.classList.add('flex');
-}
+    distributeCards() {
+        // Визуальная раздача 6 карт
+        for(let i=0; i<6; i++) {
+            Game.hand.push(Game.deck.pop());
+        }
+        this.renderPlayerHand();
+        this.renderDeck();
+    },
 
-window.onclick = (e) => {
-    if (e.target == UI.modal) UI.modal.classList.add('hidden');
-};
+    renderPlayerHand() {
+        const container = document.getElementById('player-hand');
+        container.innerHTML = '';
+        Game.hand.forEach((card, index) => {
+            const cardEl = Game.createCardUI(card);
+            cardEl.style.zIndex = index;
+            cardEl.style.marginLeft = index === 0 ? '0' : '-40px';
+            cardEl.onclick = () => this.tryPlayCard(card, index);
+            container.appendChild(cardEl);
+        });
+    },
 
-// Game Start Handler
-window.onGameStart = () => {
-    UI.modal.classList.add('hidden');
-    UI.screens.welcome.classList.add('hidden');
-    UI.screens.game.classList.remove('hidden');
-    
-    // Инициализация колоды хостом
-    initGameBoard();
-};
+    renderDeck() {
+        document.getElementById('deck-count').innerText = Game.deck.length;
+        const trumpSlot = document.getElementById('trump-slot');
+        trumpSlot.innerHTML = '';
+        if (Game.trump) {
+            const trumpEl = Game.createCardUI(Game.trump);
+            trumpEl.classList.add('scale-75', 'rotate-90');
+            trumpSlot.appendChild(trumpEl);
+        }
+    },
 
-window.onOpponentJoined = () => {
-    // Вызывается у хоста, когда кто-то подключился
-    window.onGameStart();
-    P2P.send('GAME_INIT', { msg: 'Ready to play' });
-};
+    tryPlayCard(card, index) {
+        console.log("Playing card:", card);
+        // Здесь будет логика проверки возможности хода
+        // И отправка через Network.send('MOVE', card);
+    },
 
-function initGameBoard() {
-    GameCore.createDeck();
-    
-    // Отрисовка козыря
-    const trump = GameCore.deck[0];
-    UI.trumpCard.innerHTML = '';
-    UI.trumpCard.appendChild(GameCore.createCardElement(trump));
+    syncGameState() {
+        Network.send('SYNC', {
+            deck: Game.deck,
+            trump: Game.trump,
+            turn: Game.myTurn
+        });
+    },
 
-    // Раздача (визуальная)
-    for(let i=0; i<6; i++) {
-        const card = GameCore.deck.pop();
-        const cardEl = GameCore.createCardElement(card);
-        cardEl.style.animationDelay = `${i * 0.1}s`;
-        cardEl.classList.add('animate-draw');
-        UI.playerHand.appendChild(cardEl);
-
-        const oppCard = GameCore.createCardElement(null, true);
-        UI.opponentHand.appendChild(oppCard);
+    handleNetworkData(data) {
+        console.log("NET DATA:", data);
+        if (data.type === 'SYNC') {
+            Game.deck = data.payload.deck;
+            Game.trump = data.payload.trump;
+            this.distributeCards();
+        }
     }
+};
 
-    document.getElementById('cards-count').innerText = GameCore.deck.length;
-}
-
-// P2P Message Handling
-P2P.onMessage((data) => {
-    switch(data.type) {
-        case 'GAME_INIT':
-            console.log('Game initialized by host');
-            break;
-        case 'CARD_PLAYED':
-            // Logic for showing opponent's card
-            break;
-    }
-});
+App.init();

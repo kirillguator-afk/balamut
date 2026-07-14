@@ -1,5 +1,5 @@
 /**
- * Глобальный контроллер METRO CASH (Фикс стабильности)
+ * Глобальный контроллер METRO CASH (v2.1 Stable)
  */
 const app = {
     balance: 5000,
@@ -16,26 +16,39 @@ const app = {
             const id = await Network.init();
             if (id) {
                 this.isReady = true;
-                const btn = document.getElementById('create-game-btn');
-                btn.disabled = false;
-                btn.classList.remove('opacity-50');
-                document.getElementById('peer-status').innerText = `ID: ${id.substring(0,8).toUpperCase()}`;
-                document.getElementById('peer-status').className = "text-[8px] text-green-500 font-mono tracking-tighter uppercase";
-                this.notify("ТУННЕЛЬ ОТКРЫТ", "success");
+                this.updateNetworkStatus(id);
+                this.notify("СТАНЦИЯ ГОТОВА К ПРИЕМУ", "success");
+                
+                // Проверяем наличие входящего вызова в URL
+                this.checkUrlHash();
             }
         } catch (e) {
-            console.error("App Init Error:", e);
-            this.notify("ОШИБКА ИНИЦИАЛИЗАЦИИ СЕТИ", "error");
-        }
-        
-        const roomId = window.location.hash.substring(1);
-        if (roomId && roomId.length > 5) {
-            this.notify("ПОДКЛЮЧЕНИЕ К ЛИНИИ...", "info");
-            // Небольшая задержка перед подключением для готовности Peer объекта
-            setTimeout(() => Network.connect(roomId), 1500);
+            console.error("METRO_APP: Ошибка запуска:", e);
         }
 
         this.renderLobby();
+    },
+
+    checkUrlHash() {
+        const roomId = window.location.hash.substring(1);
+        if (roomId && roomId.length > 5) {
+            this.notify("ПОДКЛЮЧЕНИЕ ПО СИГНАЛУ...", "info");
+            // Даем системе время на "прогрев" PeerJS
+            setTimeout(() => Network.connect(roomId), 1000);
+        }
+    },
+
+    updateNetworkStatus(id) {
+        const el = document.getElementById('peer-status');
+        if (el) {
+            el.innerText = `ID: ${id.substring(0,8).toUpperCase()}`;
+            el.className = "text-[8px] text-green-500 font-mono tracking-tighter uppercase";
+        }
+        const btn = document.getElementById('create-game-btn');
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+        }
     },
 
     loadBalance() {
@@ -45,7 +58,8 @@ const app = {
     },
 
     updateUI() {
-        document.getElementById('user-balance').innerText = `${this.balance.toFixed(0)} ₽`;
+        const el = document.getElementById('user-balance');
+        if (el) el.innerText = `${this.balance.toFixed(0)} ₽`;
     },
 
     notify(text, type = 'info') {
@@ -60,16 +74,17 @@ const app = {
         el.className = `${colors[type]} text-white px-4 py-3 rounded shadow-2xl text-[10px] font-bold animate-in flex items-center mb-2 pointer-events-auto uppercase tracking-tighter`;
         el.innerHTML = text;
         container.appendChild(el);
-        setTimeout(() => el.remove(), 4000);
+        setTimeout(() => { if(el) el.remove(); }, 4000);
     },
 
     setupListeners() {
         const createBtn = document.getElementById('create-game-btn');
         if (createBtn) {
-            createBtn.disabled = true; // Блокируем до готовности PeerJS
             createBtn.addEventListener('click', async () => {
-                const custom = document.getElementById('custom-bet').value;
-                if (custom) this.currentBet = parseInt(custom);
+                if (!this.isReady) return;
+                
+                const val = document.getElementById('custom-bet').value;
+                if (val) this.currentBet = parseInt(val);
                 
                 if (this.balance < this.currentBet) {
                     this.notify("НЕДОСТАТОЧНО СРЕДСТВ", "error");
@@ -77,14 +92,18 @@ const app = {
                 }
 
                 this.isHost = true;
-                this.notify("СВЯЗЬ С ТЕЛЕГРАМ...", "info");
+                createBtn.disabled = true;
+                createBtn.innerText = "ПУБЛИКАЦИЯ...";
+
                 const success = await TelegramAPI.publishGame(Network.id, this.currentBet);
                 
                 if (success) {
                     this.notify("ОФФЕР В КАНАЛЕ", "success");
                     this.addLocalLine(Network.id, this.currentBet);
                     createBtn.innerText = "ОЖИДАНИЕ ИГРОКА...";
-                    createBtn.disabled = true;
+                } else {
+                    createBtn.disabled = false;
+                    createBtn.innerText = "Опубликовать";
                 }
             });
         }
@@ -92,11 +111,8 @@ const app = {
         window.addEventListener('p2p_connected', () => this.startGame());
         window.addEventListener('p2p_data', (e) => this.handleNetworkData(e.detail));
         
-        const takeBtn = document.getElementById('take-btn');
-        if(takeBtn) takeBtn.onclick = () => this.playerTake();
-        
-        const doneBtn = document.getElementById('done-btn');
-        if(doneBtn) doneBtn.onclick = () => this.playerDone();
+        document.getElementById('take-btn').onclick = () => this.playerTake();
+        document.getElementById('done-btn').onclick = () => this.playerDone();
     },
 
     startGame() {
@@ -104,8 +120,10 @@ const app = {
         document.getElementById('game-table').classList.remove('hidden');
         Game.reset();
         
+        // Списываем только один раз при начале
         this.balance -= this.currentBet;
         this.updateUI();
+        localStorage.setItem('metro_balance', this.balance);
 
         if (this.isHost) {
             Game.initDeck();
@@ -178,8 +196,10 @@ const app = {
         while (Game.hand.length < 6 && Game.deck.length > 0) Game.hand.push(Game.deck.pop());
         const clientNewCards = [];
         while (clientNewCards.length + (Game.oppCardsCount) < 6 && Game.deck.length > 0) clientNewCards.push(Game.deck.pop());
+        
         Game.isDefender = !Game.isDefender;
         Game.isMyTurn = !Game.isDefender;
+
         Network.send('DRAW', {
             newCards: clientNewCards,
             deckLeft: Game.deck,
@@ -230,6 +250,7 @@ const app = {
 
     renderGame() {
         const handEl = document.getElementById('player-hand');
+        if(!handEl) return;
         handEl.innerHTML = '';
         Game.hand.sort((a,b) => a.power - b.power).forEach((card, index) => {
             const el = Game.createCardElement(card, false, () => this.handleCardClick(card, index));
@@ -294,7 +315,8 @@ function setBet(val) {
     document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('active'));
     event.target.classList.add('active');
     app.currentBet = val;
-    document.getElementById('custom-bet').value = val;
+    const input = document.getElementById('custom-bet');
+    if(input) input.value = val;
 }
 
 app.init();

@@ -1,103 +1,111 @@
 /**
- * Исправленный P2P Менеджер с улучшенной обработкой ошибок
+ * Глобально настроенный P2P Менеджер для METRO CASH
+ * Оптимизирован для обхода NAT и стабильной связи через STUN Google
  */
 class P2PManager {
     constructor() {
         this.peer = null;
         this.conn = null;
         this.id = null;
-        this.retryCount = 0;
+        this.isServerConnected = false;
     }
 
     async init() {
         return new Promise((resolve, reject) => {
-            // Удаляем старые экземпляры если есть
             if (this.peer) this.peer.destroy();
 
+            // Конфигурация с расширенными STUN серверами
+            const config = {
+                'iceServers': [
+                    { 'urls': 'stun:stun.l.google.com:19302' },
+                    { 'urls': 'stun:stun1.l.google.com:19302' },
+                    { 'urls': 'stun:stun2.l.google.com:19302' },
+                    { 'urls': 'stun:stun3.l.google.com:19302' },
+                    { 'urls': 'stun:stun4.l.google.com:19302' },
+                    { 'urls': 'stun:stun.voipstunt.com' },
+                    { 'urls': 'stun:stun.ekiga.net' },
+                    { 'urls': 'stun:stun.ideasip.com' },
+                    { 'urls': 'stun:stun.schlund.de' }
+                ],
+                'sdpSemantics': 'unified-plan'
+            };
+
             this.peer = new Peer(null, {
-                debug: 2, // Повышаем уровень дебага для отлова ошибок
-                config: {
-                    'iceServers': [
-                        { 'urls': 'stun:stun.l.google.com:19302' },
-                        { 'urls': 'stun:stun1.l.google.com:19302' },
-                        { 'urls': 'stun:stun2.l.google.com:19302' },
-                        { 'urls': 'stun:stun3.l.google.com:19302' },
-                        { 'urls': 'stun:stun4.l.google.com:19302' }
-                    ]
-                }
+                host: '0.peerjs.com', // Явно указываем надежный хост
+                port: 443,
+                secure: true,
+                config: config,
+                debug: 1,
+                pingInterval: 3000 // Частое пингование для поддержания туннеля
             });
             
             this.peer.on('open', (id) => {
                 this.id = id;
-                console.log("PeerJS: Туннель открыт. ID:", id);
+                this.isServerConnected = true;
+                console.log("METRO_P2P: Станция зарегистрирована. ID:", id);
                 resolve(id);
             });
 
             this.peer.on('connection', (c) => {
-                console.log("PeerJS: Входящее соединение...");
+                console.log("METRO_P2P: Входящий запрос на стыковку...");
                 if (this.conn) {
-                    console.log("PeerJS: Соединение уже активно, отклоняем.");
+                    console.warn("METRO_P2P: Линия занята, сброс.");
                     return c.close();
                 }
                 this.conn = c;
                 this.setupConn();
             });
 
-            this.peer.on('error', (err) => {
-                console.error("PeerJS Critical Error:", err.type);
-                let errorMsg = "ОШИБКА СЕТИ";
-                
-                switch(err.type) {
-                    case 'browser-incompatible':
-                        errorMsg = "БРАУЗЕР НЕ ПОДДЕРЖИВАЕТ WebRTC";
-                        break;
-                    case 'network':
-                        errorMsg = "НЕТ ДОСТУПА К СЕРВЕРУ PeerJS";
-                        break;
-                    case 'unavailable-id':
-                        errorMsg = "ID УЖЕ ЗАНЯТ";
-                        break;
-                    case 'peer-not-found':
-                        errorMsg = "СТАНЦИЯ НЕ НАЙДЕНА";
-                        break;
-                    case 'server-error':
-                        errorMsg = "ОШИБКА СЕРВЕРА (ПОВТОР...)";
-                        this.reconnect();
-                        break;
-                }
-                
-                app.notify(errorMsg, "error");
-                document.getElementById('peer-status').innerText = errorMsg;
-                document.getElementById('peer-status').className = "text-[8px] text-red-500 font-mono tracking-tighter";
+            this.peer.on('disconnected', () => {
+                this.isServerConnected = false;
+                console.warn("METRO_P2P: Потеряна связь с сигнальным сервером. Переподключение...");
+                this.peer.reconnect();
             });
 
-            // Тайм-аут инициализации
-            setTimeout(() => {
-                if (!this.id) reject("Initialization timeout");
-            }, 10000);
+            this.peer.on('error', (err) => {
+                console.error("METRO_P2P Critical Error:", err.type);
+                this.handlePeerError(err);
+            });
         });
     }
 
-    reconnect() {
-        if (this.retryCount < 3) {
-            this.retryCount++;
-            setTimeout(() => this.init(), 3000);
+    handlePeerError(err) {
+        let msg = "ОШИБКА СВЯЗИ";
+        switch(err.type) {
+            case 'peer-not-found': msg = "СТАНЦИЯ НЕ НАЙДЕНА (OFFLINE)"; break;
+            case 'unavailable-id': msg = "ID ЗАНЯТ ДРУГИМ ИГРОКОМ"; break;
+            case 'network': msg = "ПРОБЛЕМА С ИНТЕРНЕТОМ"; break;
+            case 'server-error': msg = "СЕРВЕР PEERJS НЕДОСТУПЕН"; break;
+        }
+        app.notify(msg, "error");
+        if (document.getElementById('peer-status')) {
+            document.getElementById('peer-status').innerText = msg;
+            document.getElementById('peer-status').style.color = '#ef4444';
         }
     }
 
     connect(targetId) {
+        // Защита: не подключаемся, пока сами не в сети
+        if (!this.isServerConnected) {
+            console.log("METRO_P2P: Ожидание регистрации перед вызовом...");
+            setTimeout(() => this.connect(targetId), 1000);
+            return;
+        }
+
         if (this.conn) return;
-        console.log("PeerJS: Подключение к", targetId);
+
+        console.log("METRO_P2P: Попытка стыковки с", targetId);
         this.conn = this.peer.connect(targetId, { 
             reliable: true,
-            connectionPriority: 1
+            metadata: { version: '2.1' }
         });
+        
         this.setupConn();
     }
 
     setupConn() {
         this.conn.on('open', () => {
-            console.log("PeerJS: Соединение установлено!");
+            console.log("METRO_P2P: Туннель стабилен. Данные синхронизированы.");
             window.dispatchEvent(new CustomEvent('p2p_connected'));
         });
 
@@ -106,22 +114,20 @@ class P2PManager {
         });
 
         this.conn.on('close', () => {
-            console.log("PeerJS: Соединение закрыто.");
-            app.notify("РАЗРЫВ ТУННЕЛЯ", "error");
-            setTimeout(() => location.reload(), 1500);
+            console.warn("METRO_P2P: Туннель закрыт.");
+            app.notify("ИГРОК ПОКИНУЛ СТАНЦИЮ", "error");
+            setTimeout(() => location.reload(), 2000);
         });
 
         this.conn.on('error', (err) => {
-            console.error("Connection Error:", err);
-            app.notify("ОШИБКА ТУННЕЛЯ", "error");
+            console.error("METRO_P2P Connection Error:", err);
+            app.notify("ОШИБКА ТУННЕЛИРОВАНИЯ", "error");
         });
     }
 
     send(type, payload) {
         if (this.conn && this.conn.open) {
             this.conn.send({ type, payload });
-        } else {
-            console.warn("Attempted to send data while connection is closed.");
         }
     }
 }

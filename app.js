@@ -1,5 +1,5 @@
 /**
- * Глобальный контроллер METRO CASH (v2.1 Stable)
+ * Глобальный контроллер METRO CASH (v2.2 Smart Reconnect)
  */
 const app = {
     balance: 5000,
@@ -7,6 +7,7 @@ const app = {
     isHost: false,
     activeLines: [],
     isReady: false,
+    joinRetries: 0,
 
     async init() {
         this.loadBalance();
@@ -17,13 +18,10 @@ const app = {
             if (id) {
                 this.isReady = true;
                 this.updateNetworkStatus(id);
-                this.notify("СТАНЦИЯ ГОТОВА К ПРИЕМУ", "success");
-                
-                // Проверяем наличие входящего вызова в URL
                 this.checkUrlHash();
             }
         } catch (e) {
-            console.error("METRO_APP: Ошибка запуска:", e);
+            console.error("METRO_APP: Ошибка старта.");
         }
 
         this.renderLobby();
@@ -32,10 +30,34 @@ const app = {
     checkUrlHash() {
         const roomId = window.location.hash.substring(1);
         if (roomId && roomId.length > 5) {
-            this.notify("ПОДКЛЮЧЕНИЕ ПО СИГНАЛУ...", "info");
-            // Даем системе время на "прогрев" PeerJS
-            setTimeout(() => Network.connect(roomId), 1000);
+            this.attemptToJoin(roomId);
         }
+    },
+
+    /**
+     * Умная попытка входа: если peer-unavailable, пробуем снова.
+     * Это решает проблему, когда один игрок зашел быстрее, чем сервер PeerJS обновил базу.
+     */
+    attemptToJoin(roomId) {
+        if (this.joinRetries > 15) {
+            this.notify("СТАНЦИЯ НЕ ОТВЕЧАЕТ", "error");
+            this.joinRetries = 0;
+            return;
+        }
+
+        this.notify(`ПОИСК СТАНЦИИ (${this.joinRetries + 1}/15)...`, "info");
+        Network.connect(roomId);
+
+        // Если через 3 секунды соединение не открылось - пробуем снова
+        setTimeout(() => {
+            if (!Network.conn || !Network.conn.open) {
+                this.joinRetries++;
+                this.attemptToJoin(roomId);
+            } else {
+                this.joinRetries = 0;
+                this.notify("СВЯЗЬ УСТАНОВЛЕНА", "success");
+            }
+        }, 3000);
     },
 
     updateNetworkStatus(id) {
@@ -74,7 +96,7 @@ const app = {
         el.className = `${colors[type]} text-white px-4 py-3 rounded shadow-2xl text-[10px] font-bold animate-in flex items-center mb-2 pointer-events-auto uppercase tracking-tighter`;
         el.innerHTML = text;
         container.appendChild(el);
-        setTimeout(() => { if(el) el.remove(); }, 4000);
+        setTimeout(() => { if(el) el.remove(); }, 3500);
     },
 
     setupListeners() {
@@ -98,9 +120,9 @@ const app = {
                 const success = await TelegramAPI.publishGame(Network.id, this.currentBet);
                 
                 if (success) {
-                    this.notify("ОФФЕР В КАНАЛЕ", "success");
+                    this.notify("ОФФЕР ОТПРАВЛЕН", "success");
                     this.addLocalLine(Network.id, this.currentBet);
-                    createBtn.innerText = "ОЖИДАНИЕ ИГРОКА...";
+                    createBtn.innerText = "ОЖИДАНИЕ...";
                 } else {
                     createBtn.disabled = false;
                     createBtn.innerText = "Опубликовать";
@@ -120,7 +142,6 @@ const app = {
         document.getElementById('game-table').classList.remove('hidden');
         Game.reset();
         
-        // Списываем только один раз при начале
         this.balance -= this.currentBet;
         this.updateUI();
         localStorage.setItem('metro_balance', this.balance);
@@ -271,7 +292,7 @@ const app = {
             tableEl.appendChild(wrap);
         });
 
-        document.getElementById('opp-cards-count').innerText = `КАРТ У ПРОТИВНИКА: ${Game.oppCardsCount}`;
+        document.getElementById('opp-cards-count').innerText = `ПРОТИВНИК: ${Game.oppCardsCount} КАРТ`;
         document.getElementById('cards-left').innerText = Game.deck.length;
         document.getElementById('trump-indicator').innerText = Game.getSuitIcon(Game.trump.suit);
         document.getElementById('trump-indicator').style.color = ['hearts', 'diamonds'].includes(Game.trump.suit) ? '#ef4444' : '#fff';
@@ -280,7 +301,7 @@ const app = {
         document.getElementById('take-btn').classList.toggle('hidden', !Game.isDefender || Game.table.length === 0 || !hasUnbeaten);
         document.getElementById('done-btn').classList.toggle('hidden', Game.isDefender || Game.table.length === 0 || hasUnbeaten);
 
-        const statusText = Game.isMyTurn ? "ВАШ ХОД" : "ХОД ПРОТИВНИКА";
+        const statusText = Game.isMyTurn ? "ВАШ ХОД" : "ЖДЕМ ХОД";
         this.notify(statusText, Game.isMyTurn ? "success" : "info");
     },
 
@@ -304,7 +325,7 @@ const app = {
                 </div>
                 <div class="text-right">
                     <div class="text-[10px] text-zinc-500 mb-1">${line.time}</div>
-                    <div class="text-[10px] text-green-500 animate-pulse font-bold">ОЖИДАНИЕ...</div>
+                    <div class="text-[10px] text-green-500 animate-pulse font-bold uppercase">В поиске...</div>
                 </div>
             </div>
         `).join('');

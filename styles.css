@@ -1,4 +1,86 @@
-/* Custom global styles can go here */
+:root {
+    --card-width: 100px;
+    --card-height: 150px;
+}
+
 body {
-  font-family: 'Inter', sans-serif;
+    user-select: none;
+    background-color: #09090b;
+}
+
+/* Card Styling */
+.card {
+    width: var(--card-width);
+    height: var(--card-height);
+    background: white;
+    border-radius: 8px;
+    position: relative;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s;
+    flex-shrink: 0;
+    color: #1a1a1a;
+}
+
+.card:hover {
+    transform: translateY(-20px) scale(1.05);
+    z-index: 50;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.8), 0 0 15px rgba(234, 179, 8, 0.3);
+}
+
+.card.back {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    border: 3px solid #4338ca;
+}
+
+.card-suit {
+    position: absolute;
+    font-size: 1.5rem;
+}
+
+.suit-top { top: 5px; left: 8px; }
+.suit-bottom { bottom: 5px; right: 8px; transform: rotate(180deg); }
+.card-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.red { color: #ef4444; }
+.black { color: #18181b; }
+
+/* Animations */
+@keyframes drawCard {
+    from { transform: translate(-300px, 0) rotate(-45deg); opacity: 0; }
+    to { transform: translate(0, 0) rotate(0); opacity: 1; }
+}
+
+.animate-draw {
+    animation: drawCard 0.5s ease-out forwards;
+}
+
+/* Metro Effects */
+.metro-border {
+    position: relative;
+    overflow: hidden;
+}
+
+.metro-border::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(transparent, transparent, transparent, #eab308);
+    animation: rotate 4s linear infinite;
+    z-index: -1;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }

@@ -3,16 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus App</title>
+    <title>METRO CASH | P2P DURAK</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen">
-    <div id="app" class="text-center p-8 bg-gray-800 rounded-2xl shadow-2xl border border-gray-700">
-        <h1 class="text-4xl font-bold mb-4 text-blue-400">Nexus Prime v2</h1>
-        <p class="text-gray-400 mb-6">Движок готов к генерации масштабных проектов.</p>
-        <button id="action-btn" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">Инициализация</button>
+<body class="bg-zinc-950 text-slate-200 overflow-hidden font-['Roboto']">
+
+    <!-- Loading Screen -->
+    <div id="loader" class="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center transition-opacity duration-1000">
+        <div class="relative">
+            <div class="w-24 h-24 border-4 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center font-['Orbitron'] text-yellow-500 font-bold">M</div>
+        </div>
+        <h2 class="mt-6 text-xl tracking-[0.3em] font-['Orbitron'] text-white animate-pulse">METRO CASH</h2>
+        <div class="mt-2 text-xs text-zinc-500 uppercase tracking-widest">Initializing P2P Secure Layer...</div>
     </div>
+
+    <!-- Main App Container -->
+    <div id="main-app" class="hidden h-screen flex flex-col">
+        
+        <!-- Top Bar -->
+        <header class="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-zinc-900/50 backdrop-blur-md">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-yellow-500 rounded flex items-center justify-center text-black font-bold">M</div>
+                <span class="font-['Orbitron'] font-bold tracking-wider">METRO <span class="text-yellow-500">CASH</span></span>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="bg-zinc-800 px-4 py-1.5 rounded-full border border-white/5 flex items-center gap-2">
+                    <span class="text-zinc-400 text-xs uppercase font-bold">Баланс:</span>
+                    <span id="balance-val" class="text-green-400 font-mono">1,500.00 ₽</span>
+                </div>
+                <div id="peer-status" class="flex items-center gap-2 text-xs">
+                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                    <span class="text-zinc-500 uppercase">Offline</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <main id="screen-container" class="flex-grow relative">
+            
+            <!-- Welcome Screen -->
+            <section id="screen-welcome" class="absolute inset-0 flex items-center justify-center p-6">
+                <div class="max-w-md w-full bg-zinc-900/80 border border-white/10 p-8 rounded-3xl backdrop-blur-xl shadow-2xl">
+                    <h3 class="text-2xl font-bold mb-6 text-center">Готов к игре?</h3>
+                    <div class="space-y-4">
+                        <button id="btn-create-game" class="w-full py-4 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/></svg>
+                            СОЗДАТЬ СТОЛ
+                        </button>
+                        <button id="btn-join-modal" class="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-all border border-white/5 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" stroke-width="2" stroke-linecap="round"/></svg>
+                            ПРИСОЕДИНИТЬСЯ
+                        </button>
+                    </div>
+                    <p class="mt-8 text-center text-xs text-zinc-500 leading-relaxed uppercase tracking-tighter">
+                        Игра проходит по P2P протоколу.<br>Средства списываются автоматически.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Game Table Screen -->
+            <section id="screen-game" class="hidden absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black overflow-hidden">
+                <!-- Deck & Trump -->
+                <div id="deck-area" class="absolute left-10 top-1/2 -translate-y-1/2 flex flex-col items-center">
+                    <div id="trump-card" class="mb-[-40px] transform rotate-90"></div>
+                    <div id="main-deck" class="relative w-24 h-36 bg-zinc-800 rounded-lg border-2 border-white/20 shadow-xl flex items-center justify-center">
+                        <div class="text-zinc-600 font-bold text-xl">METRO</div>
+                        <div id="cards-count" class="absolute -top-3 -right-3 w-8 h-8 bg-yellow-500 rounded-full text-black text-xs flex items-center justify-center font-bold">36</div>
+                    </div>
+                </div>
+
+                <!-- Opponent Hand -->
+                <div id="opponent-hand" class="absolute top-10 left-1/2 -translate-x-1/2 flex gap-[-20px]">
+                    <!-- Cards will be injected here -->
+                </div>
+
+                <!-- Battle Ground -->
+                <div id="battle-ground" class="absolute inset-0 pointer-events-none flex items-center justify-center gap-8">
+                    <!-- Pairs of cards -->
+                </div>
+
+                <!-- Player Hand -->
+                <div id="player-hand" class="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-2 transition-all">
+                    <!-- Cards will be injected here -->
+                </div>
+
+                <!-- Game Controls -->
+                <div class="absolute bottom-10 right-10 flex flex-col gap-3">
+                    <button id="btn-take" class="hidden px-8 py-3 bg-red-600 hover:bg-red-500 rounded-full font-bold shadow-lg transition-all active:scale-95">БИТО / ВЗЯТЬ</button>
+                    <div id="game-info" class="bg-black/50 p-4 rounded-xl border border-white/10 text-xs backdrop-blur-md">
+                        <div id="turn-indicator" class="text-yellow-500 font-bold mb-1 uppercase tracking-widest">Ваш ход</div>
+                        <div id="bet-display" class="text-white/60">Ставка: 100 ₽</div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-container" class="hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div id="modal-content" class="max-w-sm w-full bg-zinc-900 border border-white/10 rounded-2xl p-6 shadow-2xl">
+            <!-- Dynamic Content -->
+        </div>
+    </div>
+
+    <script src="tg_api.js"></script>
+    <script src="p2p.js"></script>
+    <script src="game.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

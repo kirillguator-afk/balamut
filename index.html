@@ -12,8 +12,8 @@
 </head>
 <body class="bg-[#030712] text-zinc-100 font-['Plus_Jakarta_Sans'] overflow-hidden select-none">
     <div class="fixed inset-0 pointer-events-none noise-bg opacity-20"></div>
+    <div class="scanline"></div>
 
-    <!-- Canvas для спецэффектов -->
     <canvas id="coin-canvas" class="fixed inset-0 pointer-events-none z-[100]"></canvas>
 
     <!-- Top Bar -->
@@ -22,7 +22,7 @@
             <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center font-bold text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]">M</div>
             <div>
                 <h1 class="font-['Orbitron'] text-xs tracking-widest text-emerald-500 font-bold">METRO CASH</h1>
-                <p id="peer-status" class="text-[8px] text-zinc-500 font-mono">INIT_NETWORK...</p>
+                <p id="peer-status" class="text-[8px] text-zinc-500 font-mono">NET_SYNC...</p>
             </div>
         </div>
         <div onclick="app.toggleWallet()" class="bg-zinc-900/80 px-4 py-2 rounded-2xl border border-white/5 flex items-center gap-2 cursor-pointer active:scale-95 transition-transform">
@@ -34,135 +34,109 @@
     <!-- VIEW: HUB -->
     <section id="view-hub" class="view active pt-20 px-6 pb-24 overflow-y-auto h-full">
         <div class="max-w-md mx-auto space-y-8">
-            <!-- User Welcome -->
             <div class="flex items-center gap-4">
-                <div id="user-avatar" class="w-14 h-14 rounded-2xl bg-zinc-800 border border-white/10 flex items-center justify-center text-xl">👤</div>
+                <div id="user-avatar" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-900 flex items-center justify-center text-xl font-black text-black">👤</div>
                 <div>
-                    <h2 class="text-lg font-extrabold" id="user-name">Игрок Metro</h2>
-                    <p class="text-[10px] text-zinc-500 uppercase tracking-widest">Статус: В лобби</p>
+                    <h2 class="text-lg font-extrabold" id="user-name">Player</h2>
+                    <p class="text-[10px] text-emerald-500 uppercase tracking-[0.2em] font-black">Elite Member</p>
                 </div>
             </div>
 
-            <!-- Game Select -->
             <div class="grid grid-cols-2 gap-4">
-                <div onclick="app.switchView('durak')" class="bg-gradient-to-br from-emerald-600/20 to-emerald-900/40 p-5 rounded-3xl border border-emerald-500/20 group cursor-pointer relative overflow-hidden">
+                <div onclick="app.createLobby('DURAK')" class="bg-gradient-to-br from-emerald-600/20 to-emerald-900/40 p-5 rounded-3xl border border-emerald-500/20 group cursor-pointer metro-btn">
                     <div class="text-3xl mb-3">🃏</div>
-                    <h3 class="font-bold">ДУРАК</h3>
-                    <p class="text-[9px] text-emerald-500/60 font-bold uppercase tracking-widest">P2P Мультиплеер</p>
-                    <div class="absolute -bottom-2 -right-2 text-6xl opacity-5 group-hover:scale-110 transition-transform">♠️</div>
+                    <h3 class="font-bold text-sm">ДУРАК P2P</h3>
+                    <p class="text-[8px] text-emerald-500/60 font-bold uppercase tracking-widest">Создать линию</p>
                 </div>
-                <div onclick="app.switchView('blackjack')" class="bg-gradient-to-br from-amber-600/20 to-amber-900/40 p-5 rounded-3xl border border-amber-500/20 group cursor-pointer relative overflow-hidden">
+                <div onclick="app.switchView('blackjack')" class="bg-gradient-to-br from-amber-600/20 to-amber-900/40 p-5 rounded-3xl border border-amber-500/20 group cursor-pointer metro-btn">
                     <div class="text-3xl mb-3">🎰</div>
-                    <h3 class="font-bold">БЛЭКДЖЕК</h3>
-                    <p class="text-[9px] text-amber-500/60 font-bold uppercase tracking-widest">Против Дилера</p>
-                    <div class="absolute -bottom-2 -right-2 text-6xl opacity-5 group-hover:scale-110 transition-transform">💰</div>
+                    <h3 class="font-bold text-sm">BLACKJACK</h3>
+                    <p class="text-[8px] text-amber-500/60 font-bold uppercase tracking-widest">Играть с дилером</p>
                 </div>
             </div>
 
-            <!-- Active Lobbies -->
             <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Активные линии</h2>
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                </div>
-                <div id="lobby-list" class="space-y-3">
-                    <div class="py-10 text-center text-zinc-600 text-xs italic">Поиск сигналов в канале...</div>
-                </div>
+                <h2 class="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 px-2">Открытые станции</h2>
+                <div id="lobby-list" class="space-y-3"></div>
             </div>
         </div>
     </section>
 
     <!-- VIEW: DURAK -->
     <section id="view-durak" class="view fixed inset-0 z-40 bg-[#060a12] hidden flex flex-col">
-        <!-- Opponent -->
         <div class="p-6 flex justify-between items-center bg-black/40 border-b border-white/5">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-xs">OPP</div>
-                <div id="opp-status" class="text-[10px] text-zinc-500 font-bold uppercase">Ожидание...</div>
+                <div class="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-[10px] font-bold text-emerald-500">OPP</div>
+                <div id="opp-status" class="text-[10px] font-black uppercase tracking-widest">Ожидание...</div>
             </div>
-            <div id="dk-trump" class="text-3xl"></div>
+            <div id="dk-trump" class="text-3xl filter drop-shadow-[0_0_10px_currentColor]"></div>
         </div>
         
-        <!-- Field -->
-        <div id="dk-field" class="flex-1 relative p-4 flex items-center justify-center">
+        <div id="dk-field" class="flex-1 relative p-4 flex items-center justify-center overflow-hidden">
             <div id="dk-table" class="grid grid-cols-3 gap-2 sm:gap-4 max-w-full"></div>
-            <!-- Deck info -->
-            <div class="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 opacity-50">
-                <div class="w-10 h-14 bg-zinc-800 rounded border border-white/20 transform rotate-12"></div>
-                <span id="dk-deck-count" class="text-[10px] font-mono font-bold">36</span>
+            <div class="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+                <div class="w-10 h-14 bg-zinc-900 rounded-lg border-2 border-emerald-500/20 shadow-2xl transform rotate-12 flex items-center justify-center">
+                    <span id="dk-deck-count" class="text-[10px] font-mono font-bold text-emerald-500">36</span>
+                </div>
             </div>
         </div>
 
-        <!-- Player Hand -->
-        <div class="h-48 relative px-4 flex flex-col items-center">
-            <div id="dk-actions" class="flex gap-4 mb-4">
-                <button id="btn-dk-take" class="hidden px-8 py-3 bg-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-900/30">Забрать</button>
-                <button id="btn-dk-done" class="hidden px-8 py-3 bg-emerald-600 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-900/30">Бито</button>
+        <div class="h-56 relative px-4 flex flex-col items-center pb-8">
+            <div id="dk-actions" class="flex gap-4 mb-6">
+                <button id="btn-dk-take" class="hidden px-10 py-4 bg-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl metro-btn">Забрать</button>
+                <button id="btn-dk-done" class="hidden px-10 py-4 bg-emerald-600 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl metro-btn">Бито</button>
             </div>
-            <div id="dk-hand" class="flex justify-center -space-x-10 w-full h-full pb-4 overflow-x-auto"></div>
+            <div id="dk-hand" class="flex justify-center -space-x-12 w-full h-full"></div>
         </div>
     </section>
 
-    <!-- VIEW: BLACKJACK -->
+    <!-- VIEW: BLACKJACK остается без изменений -->
     <section id="view-blackjack" class="view fixed inset-0 z-40 bg-[#090703] hidden flex flex-col">
         <div class="p-6 text-center border-b border-amber-500/10">
             <h2 class="font-['Orbitron'] text-xs text-amber-500 font-bold tracking-widest uppercase">Premium Blackjack</h2>
         </div>
-        
         <div class="flex-1 flex flex-col items-center justify-center p-6 gap-8">
-            <!-- Dealer -->
             <div class="flex flex-col items-center gap-3">
                 <div id="bj-dealer-cards" class="flex -space-x-8"></div>
                 <div id="bj-dealer-score" class="px-3 py-1 bg-black/50 border border-white/5 rounded-full text-[10px] font-bold text-zinc-400">0</div>
             </div>
-
-            <!-- VS -->
-            <div id="bj-msg" class="text-lg font-black uppercase text-amber-500 animate-pulse h-8">Сделайте ставку</div>
-
-            <!-- Player -->
+            <div id="bj-msg" class="text-lg font-black uppercase text-amber-500 animate-pulse h-8">Ставки принимаются</div>
             <div class="flex flex-col items-center gap-3">
                 <div id="bj-player-cards" class="flex -space-x-8"></div>
                 <div id="bj-player-score" class="px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-[10px] font-bold text-amber-500">0</div>
             </div>
         </div>
-
-        <!-- Controls -->
         <div class="p-8 bg-black/40 flex flex-col items-center gap-6">
             <div id="bj-bet-controls" class="flex gap-3">
-                <button onclick="blackjack.addBet(10)" class="w-12 h-12 rounded-full border-2 border-dashed border-zinc-700 text-[10px] font-bold hover:border-amber-500 transition-colors">10</button>
-                <button onclick="blackjack.addBet(50)" class="w-12 h-12 rounded-full border-2 border-dashed border-zinc-700 text-[10px] font-bold hover:border-amber-500 transition-colors">50</button>
-                <button onclick="blackjack.addBet(100)" class="w-12 h-12 rounded-full border-2 border-dashed border-zinc-700 text-[10px] font-bold hover:border-amber-500 transition-colors">100</button>
+                <button onclick="blackjack.addBet(10)" class="w-12 h-12 rounded-full border-2 border-zinc-700 text-[10px] font-bold hover:border-amber-500 transition-colors">10</button>
+                <button onclick="blackjack.addBet(50)" class="w-12 h-12 rounded-full border-2 border-zinc-700 text-[10px] font-bold hover:border-amber-500 transition-colors">50</button>
+                <button onclick="blackjack.addBet(100)" class="w-12 h-12 rounded-full border-2 border-zinc-700 text-[10px] font-bold hover:border-amber-500 transition-colors">100</button>
                 <button onclick="blackjack.clearBet()" class="w-12 h-12 rounded-full border-2 border-red-500/30 text-[10px] font-bold text-red-500">✕</button>
             </div>
             <div id="bj-play-controls" class="hidden flex gap-4">
-                <button id="btn-bj-hit" class="px-8 py-4 bg-zinc-800 rounded-2xl text-[10px] font-black uppercase">Взять</button>
-                <button id="btn-bj-stand" class="px-8 py-4 bg-amber-600 rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-amber-900/40">Хватит</button>
+                <button id="btn-bj-hit" class="px-8 py-4 bg-zinc-800 rounded-2xl text-[10px] font-black uppercase metro-btn">Взять</button>
+                <button id="btn-bj-stand" class="px-8 py-4 bg-amber-600 rounded-2xl text-[10px] font-black uppercase metro-btn">Хватит</button>
             </div>
-            <button id="btn-bj-start" class="w-full max-w-xs py-4 bg-emerald-600 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-900/30">Раздать (0 ₽)</button>
+            <button id="btn-bj-start" class="w-full max-w-xs py-4 bg-emerald-600 rounded-2xl text-xs font-black uppercase tracking-[0.2em] metro-btn">Раздать (0 ₽)</button>
         </div>
     </section>
 
-    <!-- WALLET MODAL -->
-    <div id="modal-wallet" class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-6">
-        <div class="w-full max-w-sm bg-[#0a0a0c] border border-white/5 rounded-[2.5rem] p-8 space-y-6">
+    <!-- Модалки и уведомления -->
+    <div id="modal-wallet" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl hidden flex items-center justify-center p-6">
+        <div class="w-full max-w-sm glass-panel border border-white/10 rounded-[3rem] p-10 space-y-8">
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-extrabold uppercase tracking-tighter italic">P2P Обменник</h2>
-                <button onclick="app.toggleWallet()" class="text-zinc-500 hover:text-white">✕</button>
+                <h2 class="text-2xl font-black italic tracking-tighter uppercase">Wallet</h2>
+                <button onclick="app.toggleWallet()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">✕</button>
             </div>
-            <p class="text-xs text-zinc-500 leading-relaxed uppercase tracking-widest font-bold">Выбор суммы пополнения:</p>
-            <div class="grid grid-cols-2 gap-3">
-                <button onclick="app.reqRefill(100)" class="py-4 bg-zinc-900 border border-white/5 rounded-2xl text-xs font-bold hover:border-emerald-500/50 transition-colors">100 ₽</button>
-                <button onclick="app.reqRefill(500)" class="py-4 bg-zinc-900 border border-white/5 rounded-2xl text-xs font-bold hover:border-emerald-500/50 transition-colors">500 ₽</button>
-                <button onclick="app.reqRefill(1000)" class="py-4 bg-zinc-900 border border-white/5 rounded-2xl text-xs font-bold hover:border-emerald-500/50 transition-colors">1000 ₽</button>
-                <button onclick="app.reqRefill(5000)" class="py-4 bg-zinc-900 border border-white/5 rounded-2xl text-xs font-bold hover:border-emerald-500/50 transition-colors">5000 ₽</button>
-            </div>
-            <div class="p-4 bg-amber-500/5 rounded-2xl border border-amber-500/10 text-[9px] text-amber-500/80 leading-relaxed italic">
-                * После выбора суммы бот сформирует шаблон заявки. Перевод осуществляется напрямую агенту Metro Cash.
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="app.reqRefill(100)" class="py-5 bg-zinc-900 border border-white/5 rounded-3xl text-sm font-black hover:border-emerald-500/50 transition-all active:scale-95">100 ₽</button>
+                <button onclick="app.reqRefill(500)" class="py-5 bg-zinc-900 border border-white/5 rounded-3xl text-sm font-black hover:border-emerald-500/50 transition-all active:scale-95">500 ₽</button>
+                <button onclick="app.reqRefill(1000)" class="py-5 bg-zinc-900 border border-white/5 rounded-3xl text-sm font-black hover:border-emerald-500/50 transition-all active:scale-95">1000 ₽</button>
+                <button onclick="app.reqRefill(5000)" class="py-5 bg-zinc-900 border border-white/5 rounded-3xl text-sm font-black hover:border-emerald-500/50 transition-all active:scale-95">5000 ₽</button>
             </div>
         </div>
     </div>
 
-    <!-- UI NOTIFICATIONS -->
     <div id="notif-container" class="fixed bottom-6 left-6 right-6 z-[200] space-y-2 pointer-events-none"></div>
 
     <script src="utils.js"></script>

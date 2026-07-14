@@ -1,5 +1,5 @@
 /**
- * Движок игры "Дурак" P2P
+ * Улучшенный движок игры "Дурак"
  */
 class DurakEngine {
     constructor() {
@@ -15,7 +15,7 @@ class DurakEngine {
         this.table = []; // {attack: card, defense: card | null}
         this.isMyTurn = false;
         this.isDefender = false;
-        this.gameState = 'LOBBY'; // LOBBY, PLAYING, ENDED
+        this.oppCardsCount = 0;
     }
 
     initDeck() {
@@ -26,7 +26,7 @@ class DurakEngine {
             });
         });
         this.shuffle();
-        this.trump = this.deck[0];
+        this.trump = this.deck[0]; // Последняя карта - козырь
     }
 
     shuffle() {
@@ -41,25 +41,28 @@ class DurakEngine {
         return icons[suit];
     }
 
-    createCardElement(card, isBack = false) {
+    createCardElement(card, isBack = false, onClick = null) {
         const div = document.createElement('div');
-        div.className = `card ${isBack ? 'back' : (['hearts', 'diamonds'].includes(card.suit) ? 'red' : 'black')}`;
+        div.className = `card animate-in ${isBack ? 'back' : (['hearts', 'diamonds'].includes(card.suit) ? 'red' : 'black')}`;
+        
         if (!isBack) {
             div.innerHTML = `
                 <div class="card-suit suit-tl">${this.getSuitIcon(card.suit)}</div>
                 <div class="card-val">${card.rank}</div>
                 <div class="card-suit suit-br">${this.getSuitIcon(card.suit)}</div>
             `;
-            div.dataset.suit = card.suit;
-            div.dataset.rank = card.rank;
+            if (onClick) div.onclick = onClick;
+        } else {
+            div.innerHTML = `<div class="w-full h-full flex items-center justify-center opacity-20 text-[40px]">M</div>`;
         }
         return div;
     }
 
     canAttack(card) {
         if (!this.isMyTurn || this.isDefender) return false;
+        if (this.table.length >= 6) return false;
         if (this.table.length === 0) return true;
-        // Можно подкидывать только те ранги, что уже есть на столе
+        
         const ranksOnTable = new Set();
         this.table.forEach(pair => {
             ranksOnTable.add(pair.attack.rank);
@@ -69,15 +72,15 @@ class DurakEngine {
     }
 
     canDefend(attackCard, defenseCard) {
-        if (!this.isDefender) return false;
+        if (!this.isDefender || !this.isMyTurn) return false;
+        
+        // Обычный бой (та же масть, выше ранг)
         if (defenseCard.suit === attackCard.suit) {
             return defenseCard.power > attackCard.power;
         }
+        
+        // Бой козырем
         return defenseCard.suit === this.trump.suit;
-    }
-
-    isGameOver() {
-        return this.deck.length === 0 && (this.hand.length === 0);
     }
 }
 

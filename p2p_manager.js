@@ -1,5 +1,5 @@
 /**
- * P2P Менеджер для METRO CASH
+ * Надежный P2P Менеджер
  */
 class P2PManager {
     constructor() {
@@ -12,40 +12,37 @@ class P2PManager {
         return new Promise((resolve) => {
             this.peer = new Peer(null, {
                 debug: 1,
-                config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}
+                config: {'iceServers': [
+                    { 'urls': 'stun:stun.l.google.com:19302' },
+                    { 'urls': 'stun:stun1.l.google.com:19302' }
+                ]}
             });
             
             this.peer.on('open', (id) => {
                 this.id = id;
-                this.updateStatus(true);
                 resolve(id);
             });
 
             this.peer.on('connection', (c) => {
-                if (this.conn) {
-                    c.close();
-                    return;
-                }
+                if (this.conn) return c.close();
                 this.conn = c;
-                this.bindEvents();
+                this.setupConn();
             });
 
             this.peer.on('error', (err) => {
-                console.error("Peer Error:", err);
-                if (err.type === 'peer-not-found') {
-                    app.notify("Станция не найдена", "error");
-                }
+                console.error("PeerJS Error:", err.type);
+                app.notify(`ОШИБКА СЕТИ: ${err.type}`, "error");
             });
         });
     }
 
     connect(targetId) {
         if (this.conn) return;
-        this.conn = this.peer.connect(targetId);
-        this.bindEvents();
+        this.conn = this.peer.connect(targetId, { reliable: true });
+        this.setupConn();
     }
 
-    bindEvents() {
+    setupConn() {
         this.conn.on('open', () => {
             window.dispatchEvent(new CustomEvent('p2p_connected'));
         });
@@ -55,22 +52,14 @@ class P2PManager {
         });
 
         this.conn.on('close', () => {
-            app.notify("Связь с туннелем потеряна", "error");
-            setTimeout(() => location.reload(), 2000);
+            app.notify("РАЗРЫВ ТУННЕЛЯ", "error");
+            setTimeout(() => location.reload(), 1500);
         });
     }
 
     send(type, payload) {
         if (this.conn && this.conn.open) {
             this.conn.send({ type, payload });
-        }
-    }
-
-    updateStatus(online) {
-        const el = document.getElementById('peer-status');
-        if (online) {
-            el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> ONLINE: ${this.id.substring(0,6)}`;
-            el.className = "text-[9px] font-mono text-green-500 uppercase flex items-center gap-1";
         }
     }
 }

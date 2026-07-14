@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>METRO CASH | ПЛАТФОРМА</title>
+    <title>METRO CASH | P2P DURAK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;700&display=swap" rel="stylesheet">
@@ -12,83 +12,79 @@
 <body class="bg-[#0a0a0c] text-gray-200 overflow-hidden font-['Inter']">
     <div class="fixed inset-0 pointer-events-none z-50 opacity-10 noise-bg"></div>
     
-    <header class="fixed top-0 left-0 right-0 h-16 border-b border-white/10 bg-black/50 backdrop-blur-md flex items-center justify-between px-6 z-40">
+    <!-- HEADER -->
+    <header class="fixed top-0 left-0 right-0 h-16 border-b border-white/10 bg-black/80 backdrop-blur-xl flex items-center justify-between px-6 z-40">
         <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-red-600 rounded flex items-center justify-center font-bold text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]">M</div>
-            <h1 class="font-['Share_Tech_Mono'] text-xl tracking-widest text-red-500">METRO CASH</h1>
+            <div class="w-8 h-8 bg-red-600 rounded flex items-center justify-center font-bold text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]">M</div>
+            <div class="leading-none">
+                <h1 class="font-['Share_Tech_Mono'] text-lg tracking-widest text-red-500">METRO CASH</h1>
+                <div id="peer-status" class="text-[8px] text-gray-500 font-mono tracking-tighter">OFFLINE</div>
+            </div>
         </div>
-        <div class="flex flex-col items-end">
-            <div id="user-balance" class="text-green-400 font-mono text-lg">0 ₽</div>
-            <div id="peer-status" class="text-[9px] text-gray-500 uppercase tracking-tighter italic">Initializing Tunnel...</div>
+        <div class="bg-zinc-900/80 px-4 py-1.5 rounded-full border border-white/5">
+            <div id="user-balance" class="text-green-400 font-mono text-sm tracking-tighter">0 ₽</div>
         </div>
     </header>
 
+    <!-- LOBBY -->
     <main id="lobby" class="relative pt-24 px-6 h-screen overflow-y-auto pb-32">
-        <div class="max-w-md mx-auto space-y-6">
-            <!-- Game Creation Card -->
-            <div class="bg-gradient-to-br from-zinc-900 to-black p-6 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-2 opacity-20 text-[60px] font-bold pointer-events-none font-mono">BET</div>
-                <h2 class="text-xs uppercase text-gray-400 mb-6 tracking-[0.3em] font-bold">Открыть новую линию</h2>
+        <div class="max-w-md mx-auto space-y-8">
+            
+            <div class="bg-zinc-900/40 p-6 rounded-[2rem] border border-white/5 shadow-2xl backdrop-blur-sm">
+                <h2 class="text-[10px] uppercase text-zinc-500 mb-6 tracking-[0.4em] font-bold text-center">Создать новую линию</h2>
                 
-                <div class="space-y-5">
+                <div class="space-y-6">
                     <div class="flex gap-2">
-                        <button onclick="setBet(100)" class="bet-btn active flex-1 py-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-mono">100</button>
-                        <button onclick="setBet(500)" class="bet-btn flex-1 py-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-mono">500</button>
-                        <button onclick="setBet(1000)" class="bet-btn flex-1 py-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-mono">1k</button>
+                        <button onclick="setBet(100)" class="bet-btn active flex-1 py-3 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-mono">100</button>
+                        <button onclick="setBet(500)" class="bet-btn flex-1 py-3 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-mono">500</button>
+                        <button onclick="setBet(1000)" class="bet-btn flex-1 py-3 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-mono">1k</button>
                     </div>
                     
-                    <div class="relative">
-                        <input type="number" id="custom-bet" value="100" class="w-full bg-black/50 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-red-600/50 transition font-mono text-xl" placeholder="Сумма...">
-                        <span class="absolute right-5 top-1/2 -translate-y-1/2 text-gray-500 font-mono">RUB</span>
+                    <div class="relative group">
+                        <input type="number" id="custom-bet" value="100" class="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 focus:outline-none focus:border-red-600/50 transition-all font-mono text-2xl text-center" placeholder="0">
+                        <div class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform"></div>
                     </div>
 
-                    <button id="create-game-btn" class="w-full bg-red-600 hover:bg-red-700 py-5 rounded-2xl font-bold uppercase tracking-widest shadow-[0_0_30px_rgba(220,38,38,0.2)] transition-all active:scale-95 flex items-center justify-center gap-3">
-                        <span>Опубликовать в канал</span>
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.36-.49 1-.74 3.9-1.69 6.51-2.81 7.83-3.34 3.71-1.49 4.49-1.74 4.99-1.75.11 0 .35.03.5.16.13.11.17.26.18.37 0 .09 0 .19-.01.29z"/></svg>
+                    <button id="create-game-btn" class="w-full bg-red-600 hover:bg-red-700 py-5 rounded-2xl font-black uppercase tracking-[0.2em] shadow-lg shadow-red-900/20 transition-all active:scale-95 flex items-center justify-center gap-3">
+                        Опубликовать
                     </button>
+                    
+                    <p class="text-[9px] text-zinc-600 text-center uppercase tracking-widest leading-relaxed">
+                        Вызов будет отправлен в официальный канал<br>METRO CASH КАЗИНО
+                    </p>
                 </div>
             </div>
 
-            <!-- Active Lines Section -->
             <div class="space-y-4">
-                <div class="flex items-center justify-between px-2">
-                    <h2 class="text-[10px] uppercase text-gray-500 tracking-[0.4em] font-black">Ваши Активные Линии</h2>
-                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                </div>
-                <div id="game-list" class="space-y-3">
-                    <!-- Заполняется через app.js -->
-                </div>
-                <a href="https://t.me/c/5458983067" target="_blank" class="block text-center text-[10px] text-zinc-600 uppercase tracking-widest border border-white/5 py-4 rounded-xl hover:bg-white/5 transition">
-                    Смотреть все линии в Telegram
+                <h2 class="text-[10px] uppercase text-zinc-500 tracking-[0.4em] font-black px-2">Ваши станции</h2>
+                <div id="game-list" class="space-y-3"></div>
+                <a href="https://t.me/c/5458983067" target="_blank" class="flex items-center justify-center gap-2 w-full text-[10px] text-zinc-500 uppercase tracking-widest border border-white/5 py-4 rounded-2xl hover:bg-white/5 transition bg-zinc-900/20">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.36-.49 1-.74 3.9-1.69 6.51-2.81 7.83-3.34 3.71-1.49 4.49-1.74 4.99-1.75.11 0 .35.03.5.16.13.11.17.26.18.37 0 .09 0 .19-.01.29z"/></svg>
+                    В КАНАЛ ВЫПЛАТ
                 </a>
             </div>
         </div>
     </main>
 
+    <!-- GAME TABLE -->
     <div id="game-table" class="fixed inset-0 bg-[#0a0a0c] z-50 hidden flex flex-col">
-        <!-- Тот же UI стола что и раньше -->
         <div class="p-4 flex justify-between items-center border-b border-white/5 bg-black/20">
             <div id="opponent-info" class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-[10px] font-bold">OPP</div>
                 <div>
                     <div class="text-xs font-bold uppercase tracking-widest">Оппонент</div>
-                    <div id="opp-cards-count" class="text-[9px] text-gray-500">В ожидании карт...</div>
+                    <div id="opp-cards-count" class="text-[9px] text-gray-500 italic">Связь установлена...</div>
                 </div>
             </div>
-            <div id="trump-indicator" class="text-3xl filter drop-shadow-[0_0_8px_currentColor]"></div>
+            <div id="trump-indicator" class="text-3xl filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"></div>
         </div>
 
         <div class="flex-1 relative flex items-center justify-center p-4">
             <div id="table-cards" class="flex flex-wrap gap-4 justify-center max-w-full"></div>
-            <div id="deck-area" class="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center">
-                <div class="w-10 h-14 bg-zinc-800 rounded border border-white/20 shadow-lg relative transform rotate-12">
-                     <div id="cards-left" class="absolute inset-0 flex items-center justify-center text-[10px] font-mono">36</div>
-                </div>
-            </div>
         </div>
 
         <div class="p-4 flex justify-center gap-4">
-            <button id="take-btn" class="hidden px-8 py-3 bg-amber-600 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95">ВЗЯТЬ</button>
+            <button id="take-btn" class="hidden px-8 py-3 bg-orange-600 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95">ВЗЯТЬ</button>
             <button id="done-btn" class="hidden px-8 py-3 bg-emerald-600 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95">БИТО</button>
         </div>
 

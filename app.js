@@ -1,5 +1,5 @@
 /**
- * Глобальный контроллер METRO CASH
+ * Глобальный контроллер METRO CASH (Фикс стабильности)
  */
 const app = {
     balance: 5000,
@@ -12,20 +12,27 @@ const app = {
         this.loadBalance();
         this.setupListeners();
         
-        const id = await Network.init();
-        if (id) {
-            this.isReady = true;
-            const btn = document.getElementById('create-game-btn');
-            btn.disabled = false;
-            btn.classList.remove('opacity-50');
-            document.getElementById('peer-status').innerText = `ID: ${id.substring(0,8)}`;
-            document.getElementById('peer-status').classList.add('text-green-500');
+        try {
+            const id = await Network.init();
+            if (id) {
+                this.isReady = true;
+                const btn = document.getElementById('create-game-btn');
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                document.getElementById('peer-status').innerText = `ID: ${id.substring(0,8).toUpperCase()}`;
+                document.getElementById('peer-status').className = "text-[8px] text-green-500 font-mono tracking-tighter uppercase";
+                this.notify("ТУННЕЛЬ ОТКРЫТ", "success");
+            }
+        } catch (e) {
+            console.error("App Init Error:", e);
+            this.notify("ОШИБКА ИНИЦИАЛИЗАЦИИ СЕТИ", "error");
         }
         
         const roomId = window.location.hash.substring(1);
         if (roomId && roomId.length > 5) {
-            this.notify("ВХОД В ТУННЕЛЬ...", "info");
-            Network.connect(roomId);
+            this.notify("ПОДКЛЮЧЕНИЕ К ЛИНИИ...", "info");
+            // Небольшая задержка перед подключением для готовности Peer объекта
+            setTimeout(() => Network.connect(roomId), 1500);
         }
 
         this.renderLobby();
@@ -43,6 +50,7 @@ const app = {
 
     notify(text, type = 'info') {
         const container = document.getElementById('notif-container');
+        if(!container) return;
         const el = document.createElement('div');
         const colors = {
             info: 'bg-zinc-800 border-l-4 border-blue-500',
@@ -56,30 +64,39 @@ const app = {
     },
 
     setupListeners() {
-        document.getElementById('create-game-btn').addEventListener('click', async () => {
-            const custom = document.getElementById('custom-bet').value;
-            if (custom) this.currentBet = parseInt(custom);
-            
-            if (this.balance < this.currentBet) {
-                this.notify("НЕДОСТАТОЧНО СРЕДСТВ", "error");
-                return;
-            }
+        const createBtn = document.getElementById('create-game-btn');
+        if (createBtn) {
+            createBtn.disabled = true; // Блокируем до готовности PeerJS
+            createBtn.addEventListener('click', async () => {
+                const custom = document.getElementById('custom-bet').value;
+                if (custom) this.currentBet = parseInt(custom);
+                
+                if (this.balance < this.currentBet) {
+                    this.notify("НЕДОСТАТОЧНО СРЕДСТВ", "error");
+                    return;
+                }
 
-            this.isHost = true;
-            const success = await TelegramAPI.publishGame(Network.id, this.currentBet);
-            if (success) {
-                this.notify("ОФФЕР ОТПРАВЛЕН В КАНАЛ", "success");
-                this.addLocalLine(Network.id, this.currentBet);
-                document.getElementById('create-game-btn').innerText = "ОЖИДАНИЕ ИГРОКА...";
-                document.getElementById('create-game-btn').disabled = true;
-            }
-        });
+                this.isHost = true;
+                this.notify("СВЯЗЬ С ТЕЛЕГРАМ...", "info");
+                const success = await TelegramAPI.publishGame(Network.id, this.currentBet);
+                
+                if (success) {
+                    this.notify("ОФФЕР В КАНАЛЕ", "success");
+                    this.addLocalLine(Network.id, this.currentBet);
+                    createBtn.innerText = "ОЖИДАНИЕ ИГРОКА...";
+                    createBtn.disabled = true;
+                }
+            });
+        }
 
         window.addEventListener('p2p_connected', () => this.startGame());
         window.addEventListener('p2p_data', (e) => this.handleNetworkData(e.detail));
         
-        document.getElementById('take-btn').onclick = () => this.playerTake();
-        document.getElementById('done-btn').onclick = () => this.playerDone();
+        const takeBtn = document.getElementById('take-btn');
+        if(takeBtn) takeBtn.onclick = () => this.playerTake();
+        
+        const doneBtn = document.getElementById('done-btn');
+        if(doneBtn) doneBtn.onclick = () => this.playerDone();
     },
 
     startGame() {
@@ -111,8 +128,6 @@ const app = {
     },
 
     handleNetworkData(data) {
-        console.log("Network In:", data.type, data.payload);
-        
         switch(data.type) {
             case 'GAME_INIT':
                 Game.deck = data.payload.deck;
@@ -124,14 +139,12 @@ const app = {
                 this.currentBet = data.payload.bet;
                 this.renderGame();
                 break;
-
             case 'ATTACK':
                 Game.table.push({ attack: data.payload.card, defense: null });
                 Game.oppCardsCount--;
                 Game.isMyTurn = true;
                 this.renderGame();
                 break;
-
             case 'DEFENSE':
                 const pair = Game.table.find(p => !p.defense);
                 if (pair) pair.defense = data.payload.card;
@@ -139,19 +152,16 @@ const app = {
                 Game.isMyTurn = true;
                 this.renderGame();
                 break;
-
             case 'DONE':
                 Game.table = [];
                 this.drawPhase();
                 break;
-
             case 'TAKE':
                 const allCards = Game.table.flatMap(p => [p.attack, p.defense]).filter(Boolean);
                 Game.oppCardsCount += allCards.length;
                 Game.table = [];
                 this.drawPhase();
                 break;
-
             case 'DRAW':
                 Game.hand.push(...data.payload.newCards);
                 Game.deck = data.payload.deckLeft;
@@ -163,41 +173,25 @@ const app = {
         }
     },
 
-    // Логика добора карт (Хост управляет колодой)
     drawPhase() {
         if (!this.isHost) return;
-
-        // Добор хоста
-        while (Game.hand.length < 6 && Game.deck.length > 0) {
-            Game.hand.push(Game.deck.pop());
-        }
-
-        // Добор клиента
+        while (Game.hand.length < 6 && Game.deck.length > 0) Game.hand.push(Game.deck.pop());
         const clientNewCards = [];
-        while (clientNewCards.length + (Game.oppCardsCount) < 6 && Game.deck.length > 0) {
-            clientNewCards.push(Game.deck.pop());
-        }
-
-        // Кто ходит следующим? 
-        // Если был "Бито" - ход переходит. Если "Взял" - остается.
-        // Для простоты в прототипе: переключаем роли
+        while (clientNewCards.length + (Game.oppCardsCount) < 6 && Game.deck.length > 0) clientNewCards.push(Game.deck.pop());
         Game.isDefender = !Game.isDefender;
         Game.isMyTurn = !Game.isDefender;
-
         Network.send('DRAW', {
             newCards: clientNewCards,
             deckLeft: Game.deck,
-            yourTurn: Game.isDefender, // Для него инверсия
+            yourTurn: Game.isDefender,
             yourDefend: !Game.isDefender,
             oppCount: Game.hand.length
         });
-
         this.renderGame();
     },
 
     handleCardClick(card, index) {
         if (!Game.isMyTurn) return;
-
         if (!Game.isDefender) {
             if (Game.canAttack(card)) {
                 Game.hand.splice(index, 1);
@@ -261,12 +255,10 @@ const app = {
         document.getElementById('trump-indicator').innerText = Game.getSuitIcon(Game.trump.suit);
         document.getElementById('trump-indicator').style.color = ['hearts', 'diamonds'].includes(Game.trump.suit) ? '#ef4444' : '#fff';
 
-        // Buttons
         const hasUnbeaten = Game.table.some(p => !p.defense);
         document.getElementById('take-btn').classList.toggle('hidden', !Game.isDefender || Game.table.length === 0 || !hasUnbeaten);
         document.getElementById('done-btn').classList.toggle('hidden', Game.isDefender || Game.table.length === 0 || hasUnbeaten);
 
-        // Turn indicator
         const statusText = Game.isMyTurn ? "ВАШ ХОД" : "ХОД ПРОТИВНИКА";
         this.notify(statusText, Game.isMyTurn ? "success" : "info");
     },
@@ -278,6 +270,7 @@ const app = {
 
     renderLobby() {
         const listEl = document.getElementById('game-list');
+        if (!listEl) return;
         if (this.activeLines.length === 0) {
             listEl.innerHTML = `<div class="text-center py-10 text-zinc-600 italic text-xs uppercase tracking-widest">Нет активных станций</div>`;
             return;

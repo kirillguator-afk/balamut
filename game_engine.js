@@ -1,25 +1,23 @@
 /**
- * Ядро игры Дурак
+ * Улучшенное ядро игры Дурак
  */
-const RANKS = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
-
 class DurakEngine {
     constructor() {
         this.deck = [];
         this.trump = null;
         this.hand = [];
-        this.opponentCardCount = 0;
-        this.table = []; // Array of { attack: card, defense: card | null }
+        this.table = []; // [{attack, defense}]
         this.myTurn = false;
-        this.role = 'attacker'; // attacker | defender
+        this.isDefender = false;
+        this.ranks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        this.suits = ['hearts', 'diamonds', 'clubs', 'spades'];
     }
 
-    initDeck() {
+    createDeck() {
         this.deck = [];
-        SUITS.forEach(suit => {
-            RANKS.forEach((rank, index) => {
-                this.deck.push({ suit, rank, power: index });
+        this.suits.forEach(s => {
+            this.ranks.forEach((r, i) => {
+                this.deck.push({ suit: s, rank: r, power: i });
             });
         });
         this.shuffle();
@@ -33,37 +31,31 @@ class DurakEngine {
         }
     }
 
-    canBeat(attackCard, defenseCard) {
-        // Если масти одинаковые, бьет та что выше по рангу
-        if (attackCard.suit === defenseCard.suit) {
-            return defenseCard.power > attackCard.power;
+    canBeat(attack, defense) {
+        if (defense.suit === attack.suit) {
+            return defense.power > attack.power;
         }
-        // Если защитная карта - козырь, а атакующая - нет
-        if (defenseCard.suit === this.trump.suit && attackCard.suit !== this.trump.suit) {
-            return true;
-        }
-        return false;
+        return defense.suit === this.trump.suit;
     }
 
-    getSuitSymbol(suit) {
-        const symbols = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
-        return symbols[suit];
+    getSuitIcon(suit) {
+        const icons = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
+        return icons[suit];
     }
 
-    createCardUI(card, isBack = false) {
+    createCardUI(card, hidden = false) {
         const el = document.createElement('div');
-        el.className = `card ${isBack ? 'back' : ''}`;
-        
-        if (!isBack && card) {
-            const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+        el.className = `card ${hidden ? 'back' : ''}`;
+        if (!hidden && card) {
+            const isRed = ['hearts', 'diamonds'].includes(card.suit);
             el.classList.add(isRed ? 'red' : 'black');
             el.innerHTML = `
-                <div class="card-suit suit-tl">${this.getSuitSymbol(card.suit)}</div>
+                <div class="card-suit suit-tl">${this.getSuitIcon(card.suit)}</div>
                 <div class="card-val">${card.rank}</div>
-                <div class="card-suit suit-br">${this.getSuitSymbol(card.suit)}</div>
+                <div class="card-suit suit-br">${this.getSuitIcon(card.suit)}</div>
             `;
-            el.dataset.rank = card.rank;
             el.dataset.suit = card.suit;
+            el.dataset.rank = card.rank;
         }
         return el;
     }
